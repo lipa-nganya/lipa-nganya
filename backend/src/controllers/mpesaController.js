@@ -36,7 +36,7 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
     PartyA: sanitizedPhone,
     PartyB: process.env.MPESA_SHORTCODE,
     PhoneNumber: sanitizedPhone,
-    CallBackURL: `${process.env.NGROK_URL}/api/mpesa/stkcallback`,
+    CallBackURL: `https://lipa-nganya-api.onrender.com/api/mpesa/stkcallback`,
     AccountReference: `Matatu ${matatuId}`,
     TransactionDesc: "Payment"
   };
