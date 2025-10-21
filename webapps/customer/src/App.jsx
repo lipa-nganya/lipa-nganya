@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// ✅ Automatically choose backend URL based on environment
+// Automatically choose backend URL based on environment
 const LOCAL_URL = "http://localhost:7070";
 const SERVER_URL = "https://lipa-nganya-api.onrender.com";
 const BACKEND_URL = window.location.hostname === "localhost" ? LOCAL_URL : SERVER_URL;
@@ -17,6 +17,7 @@ function App() {
   const [rating, setRating] = useState("");
   const [comment, setComment] = useState("");
 
+  // Navigate
   const handlePayFareClick = () => {
     setStep("matatuCheck");
     setMatatuNumber("");
@@ -32,13 +33,12 @@ function App() {
     setError("");
   };
 
-  // ✅ Check matatu details before payment or rating
+  // Check matatu details
   const handleCheckMatatu = async () => {
     if (!matatuNumber) {
       setError("Please enter a matatu number");
       return;
     }
-
     setLoading(true);
     setError("");
     try {
@@ -59,24 +59,23 @@ function App() {
     }
   };
 
-  // ✅ Initiate STK Push
+  // STK Push payment
   const handlePayment = async () => {
     if (!phone || !amount) {
       setError("Phone number and amount are required");
       return;
     }
-
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${BACKEND_URL}/stkpush`, {
+      const response = await fetch(`${BACKEND_URL}/api/mpesa/stkpush`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
           amount,
-          matatuNumber: matatuDetails.matatu_number,
-          customerId: 1, // Replace with actual logged-in customer ID later
+          matatuId: matatuDetails.matatu_number, // matches backend
+          customerId: 1,
         }),
       });
 
@@ -101,23 +100,21 @@ function App() {
     }
   };
 
-  // ✅ Submit Rating
+  // Submit rating
   const handleSubmitRating = async () => {
     if (!matatuNumber || !rating) {
       setError("Please fill in all required fields");
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
       const response = await fetch(`${BACKEND_URL}/api/ratings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customer_id: 1, // Replace later with actual logged-in customer
-          matatu_number: matatuNumber,
+          customer_id: 1,
+          matatu_id: matatuNumber, // backend expects matatu_id
           rating,
           comment,
         }),
@@ -139,7 +136,7 @@ function App() {
     }
   };
 
-  // ✅ Renders
+  // Renders
   const renderHome = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <button onClick={handlePayFareClick} disabled={loading}>Pay Fare</button>
