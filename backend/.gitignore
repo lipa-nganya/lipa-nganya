@@ -1,0 +1,17 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+package-lock.json
+
+# Build / local
+dist/
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# VSCode
+.vscode/
