@@ -61,24 +61,38 @@ function App() {
 
   // ✅ Initiate STK Push
   const handlePayment = async () => {
+    setError("");
+
     if (!phone || !amount) {
       setError("Phone number and amount are required");
       return;
     }
+    if (!matatuDetails?.matatu_number) {
+      setError("Matatu details are missing. Please confirm matatu number first.");
+      return;
+    }
 
+    const sanitizedPhone = phone.replace(/\D/g, "");
+    if (sanitizedPhone.length < 12) {
+      setError("Enter a valid phone number with country code (e.g., 2547XXXXXXXX)");
+      return;
+    }
+
+    const payload = {
+      phoneNumber: sanitizedPhone,
+      amount: Number(amount),
+      matatuId: matatuDetails.matatu_number,
+      customerId: 1, // Replace with actual logged-in customer later
+    };
+
+    console.log("STK Push payload:", payload);
     setLoading(true);
-    setError("");
+
     try {
-      // ✅ Updated backend route with /api/mpesa prefix
       const response = await fetch(`${BACKEND_URL}/api/mpesa/stkpush`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          amount,
-          matatuNumber: matatuDetails.matatu_number,
-          customerId: 1, // Replace with actual logged-in customer ID later
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -92,10 +106,11 @@ function App() {
         });
         setStep("confirmation");
       } else {
-        setError(data.error || "Failed to initiate payment");
+        console.error("STK Push failed:", data);
+        setError(data.message || "Failed to initiate payment");
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to connect to server:", err);
       setError("Failed to connect to server.");
     } finally {
       setLoading(false);
@@ -140,7 +155,7 @@ function App() {
     }
   };
 
-  // ✅ Renders
+  // ✅ Render helpers
   const renderHome = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <button onClick={handlePayFareClick} disabled={loading}>Pay Fare</button>
