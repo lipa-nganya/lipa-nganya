@@ -69,7 +69,8 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${BACKEND_URL}/stkpush`, {
+      // ✅ Updated backend route with /api/mpesa prefix
+      const response = await fetch(`${BACKEND_URL}/api/mpesa/stkpush`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
