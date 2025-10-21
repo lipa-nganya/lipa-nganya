@@ -2,8 +2,8 @@ import { useState } from "react";
 
 // ✅ Automatically choose backend URL based on environment
 const LOCAL_URL = "http://localhost:7070";
-const NGROK_URL = "https://homiest-psychopharmacologic-anaya.ngrok-free.dev";
-const BACKEND_URL = window.location.hostname === "localhost" ? LOCAL_URL : NGROK_URL;
+const SERVER_URL = "https://lipa-nganya-api.onrender.com";
+const BACKEND_URL = window.location.hostname === "localhost" ? LOCAL_URL : SERVER_URL;
 
 function App() {
   const [step, setStep] = useState("home"); // home, matatuCheck, payment, confirmation, rate
