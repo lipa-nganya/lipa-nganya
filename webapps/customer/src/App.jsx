@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-// Automatically choose backend URL based on environment
+// ✅ Automatically choose backend URL based on environment
 const LOCAL_URL = "http://localhost:7070";
 const SERVER_URL = "https://lipa-nganya-api.onrender.com";
 const BACKEND_URL = window.location.hostname === "localhost" ? LOCAL_URL : SERVER_URL;
@@ -17,7 +17,6 @@ function App() {
   const [rating, setRating] = useState("");
   const [comment, setComment] = useState("");
 
-  // Navigate
   const handlePayFareClick = () => {
     setStep("matatuCheck");
     setMatatuNumber("");
@@ -33,12 +32,13 @@ function App() {
     setError("");
   };
 
-  // Check matatu details
+  // ✅ Check matatu details before payment or rating
   const handleCheckMatatu = async () => {
     if (!matatuNumber) {
       setError("Please enter a matatu number");
       return;
     }
+
     setLoading(true);
     setError("");
     try {
@@ -59,14 +59,33 @@ function App() {
     }
   };
 
-  // STK Push payment
+  // ✅ Initiate STK Push
   const handlePayment = async () => {
     if (!phone || !amount || !matatuDetails?.matatu_number) {
       setError("Phone, amount, and matatu details are required");
       return;
     }
+    if (!matatuDetails?.matatu_number) {
+      setError("Matatu details are missing. Please confirm matatu number first.");
+      return;
+    }
+
+    const sanitizedPhone = phone.replace(/\D/g, "");
+    if (sanitizedPhone.length < 12) {
+      setError("Enter a valid phone number with country code (e.g., 2547XXXXXXXX)");
+      return;
+    }
+
+    const payload = {
+      phoneNumber: sanitizedPhone,
+      amount: Number(amount),
+      matatuId: matatuDetails.matatu_number,
+      customerId: 1, // Replace with actual logged-in customer later
+    };
+
+    console.log("STK Push payload:", payload);
     setLoading(true);
-    setError("");
+
     try {
       const payload = {
         phoneNumber: phone.replace(/\D/g, ""),
@@ -95,7 +114,7 @@ function App() {
         setError(data.message || "Failed to initiate payment");
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to connect to server:", err);
       setError("Failed to connect to server.");
     } finally {
       setLoading(false);
@@ -108,8 +127,10 @@ function App() {
       setError("Please fill in all required fields");
       return;
     }
+
     setLoading(true);
     setError("");
+
     try {
       const payload = {
         customer_id: 1,
@@ -143,6 +164,7 @@ function App() {
   };
 
   // Renders...
+  // ✅ Render helpers
   const renderHome = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <button onClick={handlePayFareClick} disabled={loading}>Pay Fare</button>
