@@ -61,22 +61,24 @@ function App() {
 
   // STK Push payment
   const handlePayment = async () => {
-    if (!phone || !amount) {
-      setError("Phone number and amount are required");
+    if (!phone || !amount || !matatuDetails?.matatu_number) {
+      setError("Phone, amount, and matatu details are required");
       return;
     }
     setLoading(true);
     setError("");
     try {
+      const payload = {
+        phoneNumber: phone.replace(/\D/g, ""),
+        amount: Number(amount),
+        matatuId: matatuDetails.matatu_number,
+        customerId: 1,
+      };
+
       const response = await fetch(`${BACKEND_URL}/api/mpesa/stkpush`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          amount,
-          matatuId: matatuDetails.matatu_number, // matches backend
-          customerId: 1,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -90,7 +92,7 @@ function App() {
         });
         setStep("confirmation");
       } else {
-        setError(data.error || "Failed to initiate payment");
+        setError(data.message || "Failed to initiate payment");
       }
     } catch (err) {
       console.error(err);
@@ -100,7 +102,7 @@ function App() {
     }
   };
 
-  // Submit rating
+  // ✅ Submit rating (this is the POST you were missing)
   const handleSubmitRating = async () => {
     if (!matatuNumber || !rating) {
       setError("Please fill in all required fields");
@@ -109,15 +111,19 @@ function App() {
     setLoading(true);
     setError("");
     try {
+      const payload = {
+        customer_id: 1,
+        matatu_number: matatuNumber, // backend expects matatu_number
+        rating: Number(rating),
+        comment,
+      };
+
+      console.log("Rating payload:", payload);
+
       const response = await fetch(`${BACKEND_URL}/api/ratings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_id: 1,
-          matatu_id: matatuNumber, // backend expects matatu_id
-          rating,
-          comment,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -136,7 +142,7 @@ function App() {
     }
   };
 
-  // Renders
+  // Renders...
   const renderHome = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <button onClick={handlePayFareClick} disabled={loading}>Pay Fare</button>
@@ -192,17 +198,6 @@ function App() {
     </div>
   );
 
-  const renderConfirmation = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Payment Successful!</h2>
-      <p>
-        {confirmation.amount} KES paid to Matatu {confirmation.matatuNumber} <br />
-        at {confirmation.dateTime}
-      </p>
-      <button onClick={() => setStep("home")}>Dismiss</button>
-    </div>
-  );
-
   const renderRateMatatu = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <h2>Rate a Matatu</h2>
@@ -236,6 +231,17 @@ function App() {
         {loading ? "Submitting..." : "Submit Rating"}
       </button>
       <button onClick={() => setStep("home")} disabled={loading}>Cancel</button>
+    </div>
+  );
+
+  const renderConfirmation = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <h2>Payment Successful!</h2>
+      <p>
+        {confirmation.amount} KES paid to Matatu {confirmation.matatuNumber} <br />
+        at {confirmation.dateTime}
+      </p>
+      <button onClick={() => setStep("home")}>Dismiss</button>
     </div>
   );
 
