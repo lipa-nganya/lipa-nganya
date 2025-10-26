@@ -16,9 +16,9 @@ export default function (pool) {
     }
 
     try {
-      // ✅ Save rating directly (no payment check)
+      // ✅ Save rating directly (no payment check) - use matatu_id for production compatibility
       const result = await pool.query(
-        "INSERT INTO ratings (customer_id, matatu_number, rating, comment) VALUES ($1, $2, $3, $4) RETURNING id",
+        "INSERT INTO ratings (customer_id, matatu_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING id",
         [customer_id, matatu_number, rating, comment]
       );
 
@@ -45,7 +45,7 @@ export default function (pool) {
 
     try {
       const result = await pool.query(
-        "SELECT rating, comment, created_at FROM ratings WHERE matatu_number = $1 ORDER BY created_at DESC",
+        "SELECT rating, comment, created_at FROM ratings WHERE matatu_id = $1 ORDER BY created_at DESC",
         [matatu_number]
       );
 
