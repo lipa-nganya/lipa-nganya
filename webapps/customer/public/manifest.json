@@ -1,0 +1,20 @@
+{
+  "name": "Lipa Nganya - Cashless Matatu Payments",
+  "short_name": "Lipa Nganya",
+  "description": "Cashless payments and ratings for Kenyan matatus",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f4f0",
+  "theme_color": "#ff751f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["transportation", "utilities"],
+  "lang": "en"
+}

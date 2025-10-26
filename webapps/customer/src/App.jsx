@@ -5,6 +5,38 @@ const LOCAL_URL = "http://localhost:7070";
 const SERVER_URL = "https://lipa-nganya-api.onrender.com";
 const BACKEND_URL = window.location.hostname === "localhost" ? LOCAL_URL : SERVER_URL;
 
+// Icons as SVG components
+const PayIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+    <line x1="1" y1="10" x2="23" y2="10"/>
+  </svg>
+);
+
+const RateIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+  </svg>
+);
+
+const SupportIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const BackIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M19 12H5M12 19l-7-7 7-7"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="20,6 9,17 4,12"/>
+  </svg>
+);
+
 function App() {
   const [step, setStep] = useState("home"); // home, matatuCheck, payment, confirmation, rate
   const [matatuNumber, setMatatuNumber] = useState("");
@@ -157,110 +189,314 @@ function App() {
   // Renders...
   // ✅ Render helpers
   const renderHome = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <button onClick={handlePayFareClick} disabled={loading}>Pay Fare</button>
-      <button onClick={handleRateMatatuClick} disabled={loading}>Rate Matatu</button>
-      <button onClick={() => alert("Contact Support coming soon")} disabled={loading}>Contact Support</button>
+    <div className="card">
+      <div className="text-center mb-4">
+        <h1>
+          <span className="text-primary">Lipa</span>{" "}
+          <span className="text-salmon">Nganya</span>
+        </h1>
+        <p style={{ color: "var(--gray-medium)", fontSize: "1.1rem" }}>
+          Cashless Matatu Payments & Ratings
+        </p>
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+        <button 
+          className="btn btn-primary" 
+          onClick={handlePayFareClick} 
+          disabled={loading}
+        >
+          <PayIcon />
+          Pay Fare
+        </button>
+        
+        <button 
+          className="btn btn-secondary" 
+          onClick={handleRateMatatuClick} 
+          disabled={loading}
+        >
+          <RateIcon />
+          Rate Matatu
+        </button>
+        
+        <button 
+          className="btn btn-outline" 
+          onClick={() => alert("Contact Support coming soon")} 
+          disabled={loading}
+        >
+          <SupportIcon />
+          Contact Support
+        </button>
+      </div>
     </div>
   );
 
   const renderMatatuCheck = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Enter Matatu Number</h2>
-      <input
-        type="text"
-        value={matatuNumber}
-        onChange={(e) => setMatatuNumber(e.target.value)}
-        placeholder="Matatu Number"
-        disabled={loading}
-      />
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <button onClick={handleCheckMatatu} disabled={loading}>
-        {loading ? "Checking..." : "Confirm"}
-      </button>
-      <button onClick={() => setStep("home")} disabled={loading}>Cancel</button>
+    <div className="card">
+      <div className="text-center mb-3">
+        <button 
+          className="btn btn-outline" 
+          onClick={() => setStep("home")} 
+          disabled={loading}
+          style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
+        >
+          <BackIcon />
+          Back
+        </button>
+      </div>
+      
+      <h2 className="text-center mb-4">Enter Matatu Number</h2>
+      
+      <div className="form-group">
+        <label className="form-label">Matatu Number</label>
+        <input
+          type="text"
+          className="form-input"
+          value={matatuNumber}
+          onChange={(e) => setMatatuNumber(e.target.value)}
+          placeholder="Enter matatu number"
+          disabled={loading}
+        />
+      </div>
+      
+      {error && (
+        <div style={{ 
+          color: "var(--accent-salmon)", 
+          backgroundColor: "#ffe6e6", 
+          padding: "var(--spacing-sm)", 
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)"
+        }}>
+          {error}
+        </div>
+      )}
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+        <button 
+          className="btn btn-primary" 
+          onClick={handleCheckMatatu} 
+          disabled={loading}
+        >
+          {loading ? "Checking..." : "Confirm Matatu"}
+        </button>
+      </div>
     </div>
   );
 
   const renderPayment = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Confirm Matatu Details</h2>
-      <p>Number: {matatuDetails.matatu_number}</p>
-      <p>Route: {matatuDetails.route_name}</p>
-      <p>Sacco: {matatuDetails.sacco_name}</p>
-      <input
-        type="text"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Enter your phone number"
-        disabled={loading}
-      />
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder="Enter amount (KES)"
-        disabled={loading}
-      />
-      <p>You will receive a prompt to enter your M-PESA PIN.</p>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <button onClick={handlePayment} disabled={loading}>
-        {loading ? "Processing payment..." : "Pay Now"}
-      </button>
-      <button onClick={() => setStep("home")} disabled={loading}>Cancel</button>
+    <div className="card">
+      <div className="text-center mb-3">
+        <button 
+          className="btn btn-outline" 
+          onClick={() => setStep("home")} 
+          disabled={loading}
+          style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
+        >
+          <BackIcon />
+          Back
+        </button>
+      </div>
+      
+      <h2 className="text-center mb-4">Confirm Payment</h2>
+      
+      <div className="card" style={{ backgroundColor: "var(--gray-light)", marginBottom: "var(--spacing-md)" }}>
+        <h3 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-sm)" }}>
+          Matatu Details
+        </h3>
+        <p><strong>Number:</strong> {matatuDetails.matatu_number}</p>
+        <p><strong>Route:</strong> {matatuDetails.route_name}</p>
+        <p><strong>Sacco:</strong> {matatuDetails.sacco_name}</p>
+      </div>
+      
+      <div className="form-group">
+        <label className="form-label">Phone Number</label>
+        <input
+          type="tel"
+          className="form-input"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="2547XXXXXXXX"
+          disabled={loading}
+        />
+      </div>
+      
+      <div className="form-group">
+        <label className="form-label">Amount (KES)</label>
+        <input
+          type="number"
+          className="form-input"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Enter amount"
+          disabled={loading}
+        />
+      </div>
+      
+      <div style={{ 
+        backgroundColor: "#e8f4fd", 
+        padding: "var(--spacing-sm)", 
+        borderRadius: "var(--radius-sm)",
+        marginBottom: "var(--spacing-md)",
+        fontSize: "0.9rem"
+      }}>
+        💡 You will receive a prompt to enter your M-PESA PIN
+      </div>
+      
+      {error && (
+        <div style={{ 
+          color: "var(--accent-salmon)", 
+          backgroundColor: "#ffe6e6", 
+          padding: "var(--spacing-sm)", 
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)"
+        }}>
+          {error}
+        </div>
+      )}
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+        <button 
+          className="btn btn-primary" 
+          onClick={handlePayment} 
+          disabled={loading}
+        >
+          {loading ? "Processing payment..." : "Pay Now"}
+        </button>
+      </div>
     </div>
   );
 
   const renderRateMatatu = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Rate a Matatu</h2>
-      <input
-        type="text"
-        value={matatuNumber}
-        onChange={(e) => setMatatuNumber(e.target.value)}
-        placeholder="Enter Matatu Number"
-        disabled={loading}
-      />
-      <select
-        value={rating}
-        onChange={(e) => setRating(e.target.value)}
-        disabled={loading}
-      >
-        <option value="">Select rating</option>
-        <option value="1">1 - Poor</option>
-        <option value="2">2 - Fair</option>
-        <option value="3">3 - Good</option>
-        <option value="4">4 - Very Good</option>
-        <option value="5">5 - Excellent</option>
-      </select>
-      <textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Optional comment"
-        disabled={loading}
-      />
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <button onClick={handleSubmitRating} disabled={loading}>
-        {loading ? "Submitting..." : "Submit Rating"}
-      </button>
-      <button onClick={() => setStep("home")} disabled={loading}>Cancel</button>
+    <div className="card">
+      <div className="text-center mb-3">
+        <button 
+          className="btn btn-outline" 
+          onClick={() => setStep("home")} 
+          disabled={loading}
+          style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
+        >
+          <BackIcon />
+          Back
+        </button>
+      </div>
+      
+      <h2 className="text-center mb-4">Rate a Matatu</h2>
+      
+      <div className="form-group">
+        <label className="form-label">Matatu Number</label>
+        <input
+          type="text"
+          className="form-input"
+          value={matatuNumber}
+          onChange={(e) => setMatatuNumber(e.target.value)}
+          placeholder="Enter matatu number"
+          disabled={loading}
+        />
+      </div>
+      
+      <div className="form-group">
+        <label className="form-label">Your Rating</label>
+        <select
+          className="form-input"
+          value={rating}
+          onChange={(e) => setRating(e.target.value)}
+          disabled={loading}
+        >
+          <option value="">Select rating</option>
+          <option value="1">⭐ Poor (1)</option>
+          <option value="2">⭐⭐ Fair (2)</option>
+          <option value="3">⭐⭐⭐ Good (3)</option>
+          <option value="4">⭐⭐⭐⭐ Very Good (4)</option>
+          <option value="5">⭐⭐⭐⭐⭐ Excellent (5)</option>
+        </select>
+      </div>
+      
+      <div className="form-group">
+        <label className="form-label">Comment (Optional)</label>
+        <textarea
+          className="form-input"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Share your experience..."
+          disabled={loading}
+          rows="3"
+          style={{ resize: "vertical", minHeight: "80px" }}
+        />
+      </div>
+      
+      {error && (
+        <div style={{ 
+          color: "var(--accent-salmon)", 
+          backgroundColor: "#ffe6e6", 
+          padding: "var(--spacing-sm)", 
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)"
+        }}>
+          {error}
+        </div>
+      )}
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+        <button 
+          className="btn btn-primary" 
+          onClick={handleSubmitRating} 
+          disabled={loading}
+        >
+          {loading ? "Submitting..." : "Submit Rating"}
+        </button>
+      </div>
     </div>
   );
 
   const renderConfirmation = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Payment Successful!</h2>
-      <p>
-        {confirmation.amount} KES paid to Matatu {confirmation.matatuNumber} <br />
-        at {confirmation.dateTime}
-      </p>
-      <button onClick={() => setStep("home")}>Dismiss</button>
+    <div className="card">
+      <div className="text-center">
+        <div style={{ 
+          width: "80px", 
+          height: "80px", 
+          backgroundColor: "var(--accent-orange)", 
+          borderRadius: "50%", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          margin: "0 auto var(--spacing-md)",
+          color: "white"
+        }}>
+          <CheckIcon />
+        </div>
+        
+        <h2 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-md)" }}>
+          Payment Successful!
+        </h2>
+        
+        <div className="card" style={{ backgroundColor: "var(--gray-light)", marginBottom: "var(--spacing-md)" }}>
+          <p style={{ fontSize: "1.2rem", marginBottom: "var(--spacing-xs)" }}>
+            <strong>{confirmation.amount} KES</strong>
+          </p>
+          <p style={{ color: "var(--gray-medium)", marginBottom: "var(--spacing-xs)" }}>
+            Paid to Matatu {confirmation.matatuNumber}
+          </p>
+          <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
+            {confirmation.dateTime}
+          </p>
+        </div>
+        
+        <button 
+          className="btn btn-primary" 
+          onClick={() => setStep("home")}
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-      <h1>Lipa Nganya</h1>
+    <div style={{ 
+      padding: "var(--spacing-md)", 
+      minHeight: "100vh",
+      backgroundColor: "var(--bg-primary)"
+    }}>
       {step === "home" && renderHome()}
       {step === "matatuCheck" && renderMatatuCheck()}
       {step === "payment" && renderPayment()}
