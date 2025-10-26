@@ -10,6 +10,8 @@
     "preview": "vite preview --port $PORT --host"
   },
   "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "google-auth-library": "^10.4.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

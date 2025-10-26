@@ -67,10 +67,29 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
       }
     );
 
+    // Create or find customer by phone number
+    let customerResult = await pool.query(
+      "SELECT id FROM customers WHERE phone = $1",
+      [sanitizedPhone]
+    );
+
+    let actualCustomerId = customerId;
+    
+    if (customerResult.rows.length === 0) {
+      // Create new customer with phone number
+      const newCustomerResult = await pool.query(
+        "INSERT INTO customers(phone, name, email) VALUES($1, $2, $3) RETURNING id",
+        [sanitizedPhone, `Customer ${sanitizedPhone}`, null]
+      );
+      actualCustomerId = newCustomerResult.rows[0].id;
+    } else {
+      actualCustomerId = customerResult.rows[0].id;
+    }
+
     // Insert pending payment
     await pool.query(
       "INSERT INTO payments(customer_id, matatu_id, amount, phone, status) VALUES($1,$2,$3,$4,'pending')",
-      [customerId, matatuId, amount, sanitizedPhone]
+      [actualCustomerId, matatuId, amount, sanitizedPhone]
     );
 
     res.status(200).json({ message: "STK push initiated", response: response.data });
