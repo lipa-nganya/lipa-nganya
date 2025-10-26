@@ -8,21 +8,34 @@ export default function (pool) {
   router.post("/", async (req, res) => {
     const { customer_id, matatu_number, rating, comment } = req.body;
 
+    console.log("📝 Rating submission request:", { customer_id, matatu_number, rating, comment });
+
     if (!customer_id || !matatu_number || !rating) {
+      console.log("❌ Missing required fields:", { customer_id, matatu_number, rating });
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     try {
       // ✅ Save rating directly (no payment check)
-      await pool.query(
-        "INSERT INTO ratings (customer_id, matatu_number, rating, comment) VALUES ($1, $2, $3, $4)",
+      const result = await pool.query(
+        "INSERT INTO ratings (customer_id, matatu_number, rating, comment) VALUES ($1, $2, $3, $4) RETURNING id",
         [customer_id, matatu_number, rating, comment]
       );
 
+      console.log("✅ Rating saved successfully:", result.rows[0]);
       res.status(201).json({ message: "Rating submitted successfully" });
     } catch (err) {
       console.error("❌ Error saving rating:", err);
-      res.status(500).json({ error: "Failed to save rating" });
+      console.error("❌ Error details:", {
+        code: err.code,
+        detail: err.detail,
+        constraint: err.constraint,
+        message: err.message
+      });
+      res.status(500).json({ 
+        error: "Failed to save rating",
+        details: err.message 
+      });
     }
   });
 

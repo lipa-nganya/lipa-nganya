@@ -8,14 +8,17 @@ dotenv.config();
 const { Pool } = pkg;
 
 import mpesaRoutes from "./routes/mpesaRoutes.js";
-import ratingRoutes from "./routes/ratingRoutes.js"; // ✅ NEW
+import ratingRoutes from "./routes/ratingRoutes.js";
 
 const app = express();
 
-// ✅ CORS
+// ✅ CORS - allow live frontend and local dev
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "https://lipa-nganya.onrender.com", // live frontend
+      "http://localhost:5173"             // local frontend
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -80,7 +83,7 @@ app.get("/matatus/:id", async (req, res) => {
 app.use("/api/mpesa", mpesaRoutes(pool));
 
 // ✅ Ratings routes
-app.use("/api/ratings", ratingRoutes(pool)); // ✅ NEW
+app.use("/api/ratings", ratingRoutes(pool));
 
 // ✅ Start server
 const PORT = process.env.PORT || 7070;

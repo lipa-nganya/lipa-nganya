@@ -61,14 +61,8 @@ function App() {
 
   // ✅ Initiate STK Push
   const handlePayment = async () => {
-    setError("");
-
-    if (!phone || !amount) {
-      setError("Phone number and amount are required");
-      return;
-    }
-    if (!matatuDetails?.matatu_number) {
-      setError("Matatu details are missing. Please confirm matatu number first.");
+    if (!phone || !amount || !matatuDetails?.matatu_number) {
+      setError("Phone, amount, and matatu details are required");
       return;
     }
 
@@ -87,6 +81,7 @@ function App() {
 
     console.log("STK Push payload:", payload);
     setLoading(true);
+    setError("");
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/mpesa/stkpush`, {
@@ -106,8 +101,8 @@ function App() {
         });
         setStep("confirmation");
       } else {
-        console.error("STK Push failed:", data);
         setError(data.message || "Failed to initiate payment");
+        console.error("STK Push failed:", data);
       }
     } catch (err) {
       console.error("Failed to connect to server:", err);
@@ -128,15 +123,19 @@ function App() {
     setError("");
 
     try {
+      const payload = {
+        customer_id: 1, // Replace later with actual logged-in customer
+        matatu_number: matatuNumber,
+        rating: Number(rating),
+        comment,
+      };
+
+      console.log("Rating payload:", payload);
+
       const response = await fetch(`${BACKEND_URL}/api/ratings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_id: 1, // Replace later with actual logged-in customer
-          matatu_number: matatuNumber,
-          rating,
-          comment,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -155,6 +154,7 @@ function App() {
     }
   };
 
+  // Renders...
   // ✅ Render helpers
   const renderHome = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -211,17 +211,6 @@ function App() {
     </div>
   );
 
-  const renderConfirmation = () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <h2>Payment Successful!</h2>
-      <p>
-        {confirmation.amount} KES paid to Matatu {confirmation.matatuNumber} <br />
-        at {confirmation.dateTime}
-      </p>
-      <button onClick={() => setStep("home")}>Dismiss</button>
-    </div>
-  );
-
   const renderRateMatatu = () => (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <h2>Rate a Matatu</h2>
@@ -258,6 +247,17 @@ function App() {
     </div>
   );
 
+  const renderConfirmation = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <h2>Payment Successful!</h2>
+      <p>
+        {confirmation.amount} KES paid to Matatu {confirmation.matatuNumber} <br />
+        at {confirmation.dateTime}
+      </p>
+      <button onClick={() => setStep("home")}>Dismiss</button>
+    </div>
+  );
+
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Lipa Nganya</h1>
@@ -269,5 +269,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
