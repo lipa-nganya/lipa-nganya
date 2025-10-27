@@ -253,6 +253,7 @@ function App() {
                 value={loginForm.username}
                 onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
                 required
+                autoComplete="username"
               />
             </div>
             <div className="form-group">
@@ -262,6 +263,7 @@ function App() {
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                 required
+                autoComplete="current-password"
               />
             </div>
             <button type="submit" className="btn-primary">Login</button>
