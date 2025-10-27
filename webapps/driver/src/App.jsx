@@ -187,48 +187,113 @@ function App() {
     }
   };
 
-  // Load wallet data
+  // Load wallet data from backend
   const loadWalletData = async (driverData) => {
     try {
-      // For now, set mock wallet data
-      // In production, this would fetch from the backend
-      setMatatuWallet(15000); // Mock matatu wallet balance
-      setDriverWallet(2500);  // Mock driver wallet balance
-      setConductorWallet(1800); // Mock conductor wallet balance
+      console.log('🔍 Loading wallet data for:', driverData);
       
-      // Mock recent transactions
+      const response = await fetch(`${BACKEND_URL}/api/wallet/balances`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          driverId: driverData.driver.id,
+          role: driverData.driver.role,
+          matatuId: driverData.driver.matatu_id
+        })
+      });
+
+      if (response.ok) {
+        const walletData = await response.json();
+        console.log('✅ Wallet data loaded:', walletData);
+        
+        // Set wallet balances based on role
+        setMatatuWallet(walletData.wallets.matatuWallet || 0);
+        
+        if (driverData.driver.role === 'driver') {
+          setDriverWallet(walletData.wallets.driverWallet || 0);
+          setConductorWallet(0); // Driver doesn't see conductor wallet
+        } else if (driverData.driver.role === 'conductor') {
+          setConductorWallet(walletData.wallets.conductorWallet || 0);
+          setDriverWallet(0); // Conductor doesn't see driver wallet
+        }
+        
+        // Load recent transactions
+        await loadWalletTransactions(driverData);
+        
+      } else {
+        console.error('❌ Failed to load wallet data');
+        // Fallback to mock data
+        setMatatuWallet(15000);
+        setDriverWallet(driverData.driver.role === 'driver' ? 2500 : 0);
+        setConductorWallet(driverData.driver.role === 'conductor' ? 1800 : 0);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error loading wallet data:', err);
+      // Fallback to mock data
+      setMatatuWallet(15000);
+      setDriverWallet(driverData.driver.role === 'driver' ? 2500 : 0);
+      setConductorWallet(driverData.driver.role === 'conductor' ? 1800 : 0);
+    }
+  };
+
+  // Load wallet transactions from backend
+  const loadWalletTransactions = async (driverData) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wallet/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          driverId: driverData.driver.id,
+          role: driverData.driver.role,
+          matatuId: driverData.driver.matatu_id
+        })
+      });
+
+      if (response.ok) {
+        const transactionData = await response.json();
+        console.log('✅ Wallet transactions loaded:', transactionData);
+        setRecentTransactions(transactionData.transactions || []);
+      } else {
+        console.error('❌ Failed to load wallet transactions');
+        // Fallback to mock data
+        setRecentTransactions([
+          {
+            id: 1,
+            wallet_name: 'Matatu Wallet',
+            transaction_type: 'payment_received',
+            amount: 50,
+            description: 'Customer fare payment',
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            wallet_name: 'Matatu Wallet',
+            transaction_type: 'fuel_payment',
+            amount: -2000,
+            description: 'Fuel payment',
+            created_at: new Date(Date.now() - 3600000).toISOString(),
+          }
+        ]);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error loading wallet transactions:', err);
+      // Fallback to mock data
       setRecentTransactions([
         {
           id: 1,
-          type: 'payment_received',
+          wallet_name: 'Matatu Wallet',
+          transaction_type: 'payment_received',
           amount: 50,
-          from: 'Customer Payment',
-          timestamp: new Date().toISOString(),
-          description: 'Fare payment from customer'
-        },
-        {
-          id: 2,
-          type: 'fuel_payment',
-          amount: -2000,
-          to: 'Fuel Station',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          description: 'Fuel payment'
+          description: 'Customer fare payment',
+          created_at: new Date().toISOString(),
         }
       ]);
-      
-      // Mock payment notifications
-      setPaymentNotifications([
-        {
-          id: 1,
-          customerName: 'John Doe',
-          amount: 50,
-          timestamp: new Date().toISOString(),
-          status: 'received'
-        }
-      ]);
-      
-    } catch (err) {
-      console.error('Error loading wallet data:', err);
     }
   };
 
@@ -282,7 +347,7 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/setup-pin`, {
+      const response = await fetch(`${BACKEND_URL}/api/driver/setup-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -329,7 +394,7 @@ function App() {
 
     try {
       // Send OTP
-      const otpResponse = await fetch(`${BACKEND_URL}/api/auth/send-driver-otp`, {
+      const otpResponse = await fetch(`${BACKEND_URL}/api/driver/send-driver-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -370,7 +435,7 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/verify-driver-otp`, {
+      const response = await fetch(`${BACKEND_URL}/api/driver/verify-driver-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -805,19 +870,32 @@ function App() {
         {/* Wallet Overview */}
         <div className="card" style={{ marginBottom: "var(--spacing-lg)" }}>
           <h3 style={{ color: "var(--accent-blue)", marginBottom: "var(--spacing-md)" }}>Wallet Overview</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--spacing-md)" }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: driver?.role === 'driver' ? "1fr 1fr" : "1fr 1fr", 
+            gap: "var(--spacing-md)" 
+          }}>
+            {/* Matatu Wallet - Always visible */}
             <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e3f2fd", borderRadius: "var(--radius-sm)" }}>
               <h4 style={{ margin: 0, color: "var(--accent-blue)" }}>Matatu Wallet</h4>
               <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{matatuWallet} KES</p>
             </div>
-            <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e8f5e8", borderRadius: "var(--radius-sm)" }}>
-              <h4 style={{ margin: 0, color: "var(--accent-green)" }}>Driver Wallet</h4>
-              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{driverWallet} KES</p>
-            </div>
-            <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#fff3e0", borderRadius: "var(--radius-sm)" }}>
-              <h4 style={{ margin: 0, color: "var(--accent-orange)" }}>Conductor Wallet</h4>
-              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{conductorWallet} KES</p>
-            </div>
+            
+            {/* Driver Wallet - Only visible to drivers */}
+            {driver?.role === 'driver' && (
+              <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e8f5e8", borderRadius: "var(--radius-sm)" }}>
+                <h4 style={{ margin: 0, color: "var(--accent-green)" }}>Driver Wallet</h4>
+                <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{driverWallet} KES</p>
+              </div>
+            )}
+            
+            {/* Conductor Wallet - Only visible to conductors */}
+            {driver?.role === 'conductor' && (
+              <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#fff3e0", borderRadius: "var(--radius-sm)" }}>
+                <h4 style={{ margin: 0, color: "var(--accent-orange)" }}>Conductor Wallet</h4>
+                <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{conductorWallet} KES</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -914,6 +992,73 @@ function App() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Wallet Transactions */}
+        <div className="card" style={{ marginTop: "var(--spacing-lg)" }}>
+          <h3 style={{ color: "var(--accent-blue)", marginBottom: "var(--spacing-md)" }}>Recent Wallet Transactions</h3>
+          {recentTransactions.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+              {recentTransactions.slice(0, 5).map((transaction) => (
+                <div 
+                  key={transaction.id} 
+                  className="card" 
+                  style={{ 
+                    backgroundColor: transaction.amount > 0 ? "#e8f5e8" : "#ffe6e6",
+                    padding: "var(--spacing-sm)",
+                    minHeight: "60px",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", flex: 1 }}>
+                    <div style={{ 
+                      padding: "4px 8px", 
+                      borderRadius: "var(--radius-sm)",
+                      backgroundColor: transaction.amount > 0 ? "var(--accent-green)" : "var(--accent-salmon)",
+                      color: "white",
+                      fontSize: "0.8rem",
+                      fontWeight: "600",
+                      minWidth: "30px",
+                      textAlign: "center"
+                    }}>
+                      {transaction.amount > 0 ? '+' : ''}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: "600", fontSize: "1rem" }}>
+                        {transaction.wallet_name}
+                      </p>
+                      <p style={{ margin: "2px 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
+                        {transaction.description}
+                      </p>
+                      <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "var(--gray-medium)" }}>
+                        {new Date(transaction.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ 
+                      margin: 0, 
+                      fontWeight: "600", 
+                      fontSize: "1.1rem",
+                      color: transaction.amount > 0 ? "var(--accent-green)" : "var(--accent-salmon)"
+                    }}>
+                      {transaction.amount > 0 ? '+' : ''}{transaction.amount} KES
+                    </p>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "var(--gray-medium)" }}>
+                      {transaction.transaction_type.replace('_', ' ')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: "var(--gray-medium)", textAlign: "center", padding: "var(--spacing-lg)" }}>
+              No recent transactions
+            </p>
           )}
         </div>
       </div>
