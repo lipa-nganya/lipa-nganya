@@ -101,15 +101,19 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // Login state
-  const [matatuNumber, setMatatuNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [driverPin, setDriverPin] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [needsPinSetup, setNeedsPinSetup] = useState(false);
   
-  // Trip state
-  const [currentTrip, setCurrentTrip] = useState(null);
-  const [isTripActive, setIsTripActive] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState("");
+  // Wallet and transaction state
+  const [matatuWallet, setMatatuWallet] = useState(0);
+  const [driverWallet, setDriverWallet] = useState(0);
+  const [conductorWallet, setConductorWallet] = useState(0);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [paymentNotifications, setPaymentNotifications] = useState([]);
   
   // Data state
   const [payments, setPayments] = useState([]);
@@ -203,10 +207,10 @@ function App() {
     }
   };
 
-  // Driver authentication
-  const handleDriverLogin = async () => {
-    if (!matatuNumber.trim()) {
-      setError("Please enter your matatu number");
+  // Setup PIN for new users
+  const handlePinSetup = async () => {
+    if (!driverPin || driverPin.length !== 4) {
+      setError("Please enter a 4-digit PIN");
       return;
     }
 
@@ -214,31 +218,67 @@ function App() {
     setError("");
 
     try {
-      // First, verify matatu exists
-      const matatuResponse = await fetch(`${BACKEND_URL}/api/matatus/search?number=${matatuNumber}`);
-      if (!matatuResponse.ok) {
-        setError("Matatu number not found");
-        return;
-      }
+      const response = await fetch(`${BACKEND_URL}/api/auth/setup-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          pin: driverPin
+        }),
+      });
 
-      const matatuData = await matatuResponse.json();
-      
-      // Send OTP for verification
+      if (response.ok) {
+        const data = await response.json();
+        console.log("PIN setup successful");
+        
+        // Update driver data
+        const updatedDriver = { ...driver, hasPin: true };
+        setDriver(updatedDriver);
+        localStorage.setItem('lipaNganyaDriver', JSON.stringify(updatedDriver));
+        
+        // Load driver data and go to dashboard
+        await loadDriverData(updatedDriver);
+        setStep("dashboard");
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Failed to setup PIN");
+      }
+    } catch (err) {
+      console.error("❌ Error setting up PIN:", err);
+      setError("PIN setup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Driver/Conductor Login
+  const handleLogin = async () => {
+    if (!phoneNumber.trim()) {
+      setError("Please enter your phone number");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // Send OTP
       const otpResponse = await fetch(`${BACKEND_URL}/api/auth/send-driver-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          matatuNumber: matatuNumber,
-          matatuId: matatuData.id
+          phoneNumber: phoneNumber
         }),
       });
 
       if (otpResponse.ok) {
         const otpData = await otpResponse.json();
         setOtpSent(true);
-        console.log(`✅ OTP sent for matatu ${matatuNumber}`);
+        console.log(`✅ OTP sent for phone ${phoneNumber}`);
         // For testing: show OTP in console
         if (otpData.otp) {
           console.log(`🔑 TESTING OTP: ${otpData.otp}`);
@@ -272,7 +312,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          matatuNumber: matatuNumber,
+          phoneNumber: phoneNumber,
           otp: otpCode
         }),
       });
@@ -284,20 +324,27 @@ function App() {
         const driverData = {
           id: data.driver.id,
           name: data.driver.name,
-          phone: data.driver.phone,
-          matatu_id: data.matatu.id,
-          matatu_number: matatuNumber
+          phone: phoneNumber,
+          role: data.driver.role, // 'driver' or 'conductor'
+          matatu_id: data.matatu?.id,
+          matatu_number: data.matatu?.number,
+          hasPin: data.driver.hasPin
         };
 
         setDriver(driverData);
         setIsAuthenticated(true);
         localStorage.setItem('lipaNganyaDriver', JSON.stringify(driverData));
         
-        // Load driver data
-        await loadDriverData(driverData);
-        
-        setStep("dashboard");
-        console.log(`✅ Driver authenticated: ${driverData.name}`);
+        // Check if user needs to set up PIN
+        if (!driverData.hasPin) {
+          setNeedsPinSetup(true);
+          setStep("pinSetup");
+        } else {
+          // Load driver data
+          await loadDriverData(driverData);
+          setStep("dashboard");
+        }
+        console.log(`✅ ${driverData.role} authenticated: ${driverData.name}`);
       } else {
         setError(data.message || "Invalid verification code");
       }
@@ -443,20 +490,20 @@ function App() {
           </p>
         </div>
         <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
-          Enter your matatu number to access your driver dashboard
+          Enter your phone number to access your driver/conductor dashboard
         </p>
       </div>
       
       {!otpSent ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
           <div className="form-group">
-            <label className="form-label">Matatu Number</label>
+            <label className="form-label">Phone Number</label>
             <input
-              type="text"
+              type="tel"
               className="form-input"
-              value={matatuNumber}
-              onChange={(e) => setMatatuNumber(e.target.value.toUpperCase())}
-              placeholder="KCA 123A"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="2547XXXXXXXX"
               disabled={loading}
               style={{ fontSize: "1.1rem", padding: "var(--spacing-md)", minHeight: "56px" }}
             />
@@ -491,12 +538,12 @@ function App() {
             </div>
           )}
           
-          <button 
-            className="btn btn-primary" 
-            onClick={handleDriverLogin}
-            disabled={loading || !matatuNumber.trim()}
-            style={{ fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
-          >
+            <button 
+              className="btn btn-primary" 
+              onClick={handleLogin}
+              disabled={loading || !phoneNumber.trim()}
+              style={{ fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
+            >
             {loading ? (
               <>
                 <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
@@ -535,7 +582,7 @@ function App() {
             fontSize: "0.9rem",
             textAlign: "center"
           }}>
-            ✅ Verification code sent for {matatuNumber}
+            ✅ Verification code sent to {phoneNumber}
           </div>
           
           {error && (
@@ -560,7 +607,7 @@ function App() {
           <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
             <button 
               className="btn btn-primary" 
-              onClick={verifyDriverOTP}
+              onClick={verifyOTP}
               disabled={loading || otpCode.length !== 6}
               style={{ flex: 1, fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
             >
@@ -598,6 +645,97 @@ function App() {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  // Render PIN setup screen
+  const renderPinSetup = () => (
+    <div className="card">
+      <div className="text-center mb-4">
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "var(--spacing-sm)",
+          marginBottom: "var(--spacing-md)"
+        }}>
+          <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: "32px", height: "32px", color: "var(--accent-blue)" }}>
+            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+          </svg>
+          <h2 style={{ margin: 0, color: "var(--accent-blue)" }}>Setup Security PIN</h2>
+        </div>
+        <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
+          Create a 4-digit PIN to secure your transactions
+        </p>
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+        <div className="form-group">
+          <label className="form-label">4-Digit PIN</label>
+          <input
+            type="password"
+            className="form-input"
+            value={driverPin}
+            onChange={(e) => setDriverPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="1234"
+            disabled={loading}
+            style={{ fontSize: "1.5rem", padding: "var(--spacing-md)", minHeight: "56px", textAlign: "center", letterSpacing: "0.5rem" }}
+          />
+        </div>
+        
+        <div style={{ 
+          backgroundColor: "#e8f4fd", 
+          padding: "var(--spacing-sm)", 
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)",
+          fontSize: "0.9rem"
+        }}>
+          🔒 Your PIN will be encrypted and used to authorize all transactions
+        </div>
+        
+        {error && (
+          <div style={{ 
+            color: "var(--accent-salmon)", 
+            backgroundColor: "#ffe6e6", 
+            padding: "var(--spacing-sm)", 
+            borderRadius: "var(--radius-sm)",
+            fontSize: "0.9rem",
+            border: "1px solid #ffcccc",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--spacing-xs)"
+          }}>
+            <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            {error}
+          </div>
+        )}
+        
+        <button 
+          className="btn btn-primary" 
+          onClick={handlePinSetup}
+          disabled={loading || driverPin.length !== 4}
+          style={{ fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
+        >
+          {loading ? (
+            <>
+              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+              </svg>
+              Setting up PIN...
+            </>
+          ) : (
+            <>
+              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 12l2 2 4-4"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+              Complete Setup
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 
@@ -675,61 +813,23 @@ function App() {
 
       {/* Main Content */}
       <div style={{ marginTop: "80px", padding: "var(--spacing-md)" }}>
-        {/* Trip Status */}
-        <div className="card">
-          <div className="trip-status" style={{ 
-            backgroundColor: isTripActive ? "#d4edda" : "#f8d7da",
-            border: `2px solid ${isTripActive ? "var(--accent-green)" : "var(--accent-salmon)"}`
-          }}>
-            <div className={`trip-indicator ${isTripActive ? 'active' : 'inactive'}`}></div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "1.2rem" }}>
-                {isTripActive ? "Trip Active" : "No Active Trip"}
-              </h3>
-              <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--gray-medium)" }}>
-                {isTripActive ? `Route: ${currentTrip?.route}` : "Ready to start trip"}
-              </p>
+        {/* Wallet Overview */}
+        <div className="card" style={{ marginBottom: "var(--spacing-lg)" }}>
+          <h3 style={{ color: "var(--accent-blue)", marginBottom: "var(--spacing-md)" }}>Wallet Overview</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--spacing-md)" }}>
+            <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e3f2fd", borderRadius: "var(--radius-sm)" }}>
+              <h4 style={{ margin: 0, color: "var(--accent-blue)" }}>Matatu Wallet</h4>
+              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{matatuWallet} KES</p>
+            </div>
+            <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e8f5e8", borderRadius: "var(--radius-sm)" }}>
+              <h4 style={{ margin: 0, color: "var(--accent-green)" }}>Driver Wallet</h4>
+              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{driverWallet} KES</p>
+            </div>
+            <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#fff3e0", borderRadius: "var(--radius-sm)" }}>
+              <h4 style={{ margin: 0, color: "var(--accent-orange)" }}>Conductor Wallet</h4>
+              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{conductorWallet} KES</p>
             </div>
           </div>
-          
-          {!isTripActive ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
-              <div className="form-group">
-                <label className="form-label">Select Route</label>
-                <select
-                  className="form-input"
-                  value={selectedRoute}
-                  onChange={(e) => setSelectedRoute(e.target.value)}
-                  style={{ fontSize: "1rem", padding: "var(--spacing-sm)" }}
-                >
-                  <option value="">Choose route...</option>
-                  {matatu && matatu.routes?.map((route, index) => (
-                    <option key={index} value={route}>{route}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <button 
-                className="btn btn-success" 
-                onClick={startTrip}
-                disabled={loading || !selectedRoute}
-                style={{ fontSize: "1.1rem", fontWeight: "600" }}
-              >
-                <TripIcon />
-                Start Trip
-              </button>
-            </div>
-          ) : (
-            <button 
-              className="btn btn-danger" 
-              onClick={endTrip}
-              disabled={loading}
-              style={{ fontSize: "1.1rem", fontWeight: "600" }}
-            >
-              <TripIcon />
-              End Trip
-            </button>
-          )}
         </div>
 
         {/* Dashboard Cards */}
@@ -982,6 +1082,7 @@ function App() {
   return (
     <div className="App">
       {step === "login" && renderLogin()}
+      {step === "pinSetup" && renderPinSetup()}
       {step === "dashboard" && renderDashboard()}
       
       {/* Add more step renders here for other screens */}

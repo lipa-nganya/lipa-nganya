@@ -6,34 +6,34 @@ const ADVANTA_API_KEY = process.env.ADVANTA_API_KEY || 'your_api_key_here';
 const ADVANTA_PARTNER_ID = process.env.ADVANTA_PARTNER_ID || 'your_partner_id_here';
 const ADVANTA_SHORTCODE = process.env.ADVANTA_SHORTCODE || 'LIPANGANYA';
 
-// ✅ Send OTP for driver authentication
+// ✅ Send OTP for driver/conductor authentication
 export const sendDriverOTP = async (req, res) => {
-  const { matatuNumber, matatuId } = req.body;
+  const { phoneNumber } = req.body;
 
-  console.log(`🔍 Sending driver OTP for matatu: ${matatuNumber}`);
+  console.log(`🔍 Sending driver OTP for phone: ${phoneNumber}`);
 
-  if (!matatuNumber || !matatuId) {
+  if (!phoneNumber) {
     return res.status(400).json({ 
-      error: "Matatu number and ID are required" 
+      error: "Phone number is required" 
     });
   }
 
   try {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`🔍 Generated driver OTP: ${otp} for matatu: ${matatuNumber}`);
+    console.log(`🔍 Generated driver OTP: ${otp} for phone: ${phoneNumber}`);
     
     // Store OTP temporarily (in production, this should be stored securely on backend)
     // For now, we'll use a simple in-memory store
     global.driverOTPs = global.driverOTPs || {};
-    global.driverOTPs[matatuNumber] = {
+    global.driverOTPs[phoneNumber] = {
       otp: otp,
-      matatuId: matatuId,
+      phoneNumber: phoneNumber,
       timestamp: Date.now()
     };
     
     // BYPASS SMS API FOR NOW - Just return success
-    console.log(`✅ Driver OTP generated (SMS bypassed): ${otp} for matatu ${matatuNumber}`);
+    console.log(`✅ Driver OTP generated (SMS bypassed): ${otp} for phone ${phoneNumber}`);
     console.log(`📱 OTP for testing: ${otp}`);
     
     res.json({ 
@@ -44,96 +44,30 @@ export const sendDriverOTP = async (req, res) => {
       networkId: "test"
     });
 
-    // TODO: Uncomment below when Advanta SMS API is configured
-    /*
-    // Send OTP via Advanta SMS API
-    const message = `Your Lipa Nganya driver verification code is: ${otp}. Valid for 5 minutes.`;
-    
-    const smsPayload = {
-      apikey: ADVANTA_API_KEY,
-      partnerID: ADVANTA_PARTNER_ID,
-      message: message,
-      shortcode: ADVANTA_SHORTCODE,
-      mobile: "254708374153" // This should be the driver's phone number from database
-    };
-
-    console.log(`📡 Sending driver SMS via Advanta API:`, smsPayload);
-
-    // Send SMS via Advanta API
-    const response = await axios.post(ADVANTA_API_URL, smsPayload, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000 // 10 second timeout
-    });
-
-    console.log(`✅ Advanta SMS API response:`, response.data);
-
-    if (response.data && response.data.responses && response.data.responses.length > 0) {
-      const smsResponse = response.data.responses[0];
-      
-      if (smsResponse['respose-code'] === 200) {
-        console.log(`✅ Driver OTP sent successfully for matatu ${matatuNumber}`);
-        res.json({ 
-          success: true,
-          message: "Verification code sent successfully",
-          messageId: smsResponse.messageid,
-          networkId: smsResponse.networkid
-        });
-      } else {
-        console.error(`❌ SMS API error:`, smsResponse);
-        res.status(400).json({
-          error: "Failed to send verification code",
-          details: smsResponse['response-description'] || 'Unknown error'
-        });
-      }
-    } else {
-      console.error(`❌ Invalid SMS API response:`, response.data);
-      res.status(500).json({
-        error: "Invalid response from SMS service"
-      });
-    }
-    */
-
   } catch (error) {
-    console.error(`❌ Error sending driver OTP via Advanta API:`, error);
-    
-    if (error.response) {
-      console.error(`❌ API Error Response:`, error.response.data);
-      res.status(500).json({
-        error: "Failed to send verification code",
-        details: error.response.data || error.message
-      });
-    } else if (error.request) {
-      console.error(`❌ Network Error:`, error.request);
-      res.status(500).json({
-        error: "Network error. Please try again."
-      });
-    } else {
-      console.error(`❌ General Error:`, error.message);
-      res.status(500).json({
-        error: "Failed to send verification code. Please try again."
-      });
-    }
+    console.error(`❌ Error in driver OTP generation:`, error);
+    res.status(500).json({
+      error: "Failed to generate OTP. Please try again."
+    });
   }
 };
 
-// ✅ Verify driver OTP
+// ✅ Verify driver/conductor OTP
 export const verifyDriverOTP = async (req, res) => {
-  const { matatuNumber, otp } = req.body;
+  const { phoneNumber, otp } = req.body;
 
-  console.log(`🔍 Verifying driver OTP for matatu: ${matatuNumber}`);
+  console.log(`🔍 Verifying driver OTP for phone: ${phoneNumber}`);
 
-  if (!matatuNumber || !otp) {
+  if (!phoneNumber || !otp) {
     return res.status(400).json({ 
-      error: "Matatu number and OTP are required" 
+      error: "Phone number and OTP are required" 
     });
   }
 
   try {
     // Check if OTP exists and is valid
     global.driverOTPs = global.driverOTPs || {};
-    const storedOTP = global.driverOTPs[matatuNumber];
+    const storedOTP = global.driverOTPs[phoneNumber];
     
     if (!storedOTP) {
       return res.status(400).json({
@@ -147,7 +81,7 @@ export const verifyDriverOTP = async (req, res) => {
     const fiveMinutes = 5 * 60 * 1000;
     
     if (otpAge > fiveMinutes) {
-      delete global.driverOTPs[matatuNumber];
+      delete global.driverOTPs[phoneNumber];
       return res.status(400).json({
         error: "Verification code has expired. Please request a new code."
       });
@@ -160,8 +94,8 @@ export const verifyDriverOTP = async (req, res) => {
       });
     }
     
-    // OTP is valid, create or find driver
-    const driverData = await createOrFindDriver(matatuNumber, storedOTP.matatuId);
+    // OTP is valid, create or find driver/conductor
+    const driverData = await createOrFindDriver(phoneNumber);
     
     if (!driverData) {
       return res.status(500).json({
@@ -170,14 +104,15 @@ export const verifyDriverOTP = async (req, res) => {
     }
     
     // Clean up OTP
-    delete global.driverOTPs[matatuNumber];
+    delete global.driverOTPs[phoneNumber];
     
-    console.log(`✅ Driver OTP verified successfully for matatu ${matatuNumber}`);
+    console.log(`✅ Driver OTP verified successfully for phone ${phoneNumber}`);
     res.json({
       success: true,
       message: "Driver authenticated successfully",
       driver: driverData.driver,
-      matatu: driverData.matatu
+      matatu: driverData.matatu,
+      needsPinSetup: !driverData.driver.hasPin
     });
 
   } catch (error) {
@@ -188,33 +123,76 @@ export const verifyDriverOTP = async (req, res) => {
   }
 };
 
-// ✅ Create or find driver
-const createOrFindDriver = async (matatuNumber, matatuId) => {
+// ✅ Create or find driver/conductor
+const createOrFindDriver = async (phoneNumber) => {
   try {
-    console.log(`🔍 Creating/finding driver for matatu: ${matatuNumber}`);
+    console.log(`🔍 Creating/finding driver/conductor for phone: ${phoneNumber}`);
     
-    // For now, create a mock driver - in production this would query the database
+    // For now, create a mock driver/conductor - in production this would query the database
     const driver = {
       id: 1,
-      name: `Driver ${matatuNumber}`,
-      phone: "254708374153",
-      matatu_id: matatuId,
+      name: `Driver ${phoneNumber.slice(-4)}`, // Use last 4 digits of phone
+      phone: phoneNumber,
+      role: "driver", // or "conductor" - this would come from database
+      matatu_id: 1, // This would be looked up from database
+      hasPin: false, // This would come from database
       created_at: new Date().toISOString()
     };
     
     const matatu = {
-      id: matatuId,
-      number: matatuNumber,
+      id: 1,
+      number: "KCA123A", // This would come from database
       route_name: "Route 1",
       sacco_name: "Sacco A",
       routes: ["Route 1", "Route 2", "Route 3"]
     };
     
-    console.log(`✅ Driver created/found:`, driver);
+    console.log(`✅ Driver/conductor created/found:`, driver);
     return { driver, matatu };
     
   } catch (error) {
     console.error(`❌ Error creating/finding driver:`, error);
     return null;
+  }
+};
+
+// ✅ Setup PIN for driver/conductor
+export const setupPin = async (req, res) => {
+  const { phoneNumber, pin } = req.body;
+
+  console.log(`🔍 Setting up PIN for phone: ${phoneNumber}`);
+
+  if (!phoneNumber || !pin) {
+    return res.status(400).json({ 
+      error: "Phone number and PIN are required" 
+    });
+  }
+
+  if (pin.length !== 4) {
+    return res.status(400).json({ 
+      error: "PIN must be 4 digits" 
+    });
+  }
+
+  try {
+    // In production, this would:
+    // 1. Hash the PIN using bcrypt
+    // 2. Store it in the database
+    // 3. Update the driver/conductor record
+    
+    // For now, just simulate success
+    console.log(`✅ PIN setup successful for phone: ${phoneNumber}`);
+    
+    res.json({
+      success: true,
+      message: "PIN setup successful",
+      phoneNumber: phoneNumber
+    });
+
+  } catch (error) {
+    console.error(`❌ Error setting up PIN:`, error);
+    res.status(500).json({
+      error: "Failed to setup PIN. Please try again."
+    });
   }
 };

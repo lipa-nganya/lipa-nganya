@@ -1,5 +1,5 @@
 import express from "express";
-import { sendDriverOTP, verifyDriverOTP } from "../controllers/driverController.js";
+import { sendDriverOTP, verifyDriverOTP, setupPin } from "../controllers/driverController.js";
 
 const router = express.Router();
 
@@ -8,5 +8,8 @@ router.post("/send-driver-otp", sendDriverOTP);
 
 // Verify driver OTP
 router.post("/verify-driver-otp", verifyDriverOTP);
+
+// Setup PIN for driver/conductor
+router.post("/setup-pin", setupPin);
 
 export default router;
