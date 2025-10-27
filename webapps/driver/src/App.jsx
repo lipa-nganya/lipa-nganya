@@ -596,7 +596,7 @@ function App() {
           <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
             <button 
               className="btn btn-primary" 
-              onClick={verifyOTP}
+              onClick={verifyDriverOTP}
               disabled={loading || otpCode.length !== 6}
               style={{ flex: 1, fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
             >
