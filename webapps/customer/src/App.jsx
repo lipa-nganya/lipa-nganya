@@ -53,7 +53,7 @@ const CloseIcon = () => (
 );
 
 function App() {
-  const [step, setStep] = useState("home"); // home, matatuCheck, payment, waiting, confirmation, rate, history, login, profile, transactions
+  const [step, setStep] = useState("home"); // home, matatuCheck, payment, waiting, confirmation, rate, history, login, profile
   const [matatuNumber, setMatatuNumber] = useState("");
   const [matatuDetails, setMatatuDetails] = useState(null);
   const [phone, setPhone] = useState("");
@@ -61,13 +61,6 @@ function App() {
   const [confirmation, setConfirmation] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [allTransactions, setAllTransactions] = useState([]);
-  const [transactionStats, setTransactionStats] = useState(null);
-  const [transactionFilters, setTransactionFilters] = useState({
-    status: '',
-    limit: 20,
-    offset: 0
-  });
   const [rating, setRating] = useState("");
   const [comment, setComment] = useState("");
   
@@ -119,14 +112,6 @@ function App() {
       loadPaymentHistory();
     }
   }, [customer, isAuthenticated]);
-
-  // Load transactions and stats when transactions page is accessed
-  useEffect(() => {
-    if (step === "transactions") {
-      loadAllTransactions();
-      loadTransactionStats();
-    }
-  }, [step, transactionFilters]);
 
   const handlePayFareClick = () => {
     setStep("matatuCheck");
@@ -748,59 +733,6 @@ function App() {
     }
   };
 
-  // ✅ Load All Transactions
-  const loadAllTransactions = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (transactionFilters.status) params.append('status', transactionFilters.status);
-      params.append('limit', transactionFilters.limit);
-      params.append('offset', transactionFilters.offset);
-      
-      const response = await fetch(`${BACKEND_URL}/api/transactions?${params}`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setAllTransactions(data.transactions || []);
-        console.log('✅ All transactions loaded:', data);
-      } else {
-        console.error('❌ Failed to load transactions:', data);
-        setError('Failed to load transactions');
-      }
-    } catch (err) {
-      console.error('❌ Error loading transactions:', err);
-      setError('Network error loading transactions');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ✅ Load Transaction Statistics
-  const loadTransactionStats = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/transactions/stats`);
-      const data = await response.json();
-      
-      if (response.ok) {
-        setTransactionStats(data);
-        console.log('✅ Transaction stats loaded:', data);
-      } else {
-        console.error('❌ Failed to load transaction stats:', data);
-      }
-    } catch (err) {
-      console.error('❌ Error loading transaction stats:', err);
-    }
-  };
-
-  // ✅ Handle Transaction Filter Change
-  const handleTransactionFilterChange = (filterType, value) => {
-    setTransactionFilters(prev => ({
-      ...prev,
-      [filterType]: value,
-      offset: 0 // Reset offset when filter changes
-    }));
-  };
-
   // Renders...
   // ✅ Render helpers
   const renderHome = () => (
@@ -933,18 +865,6 @@ function App() {
                   }}
                 >
                   Payments
-                </div>
-
-                <div
-                  onClick={() => handleMenuClick("transactions")}
-                  style={{
-                    padding: "var(--spacing-sm)",
-                    cursor: "pointer",
-                    fontSize: "1.1rem",
-                    fontWeight: "500"
-                  }}
-                >
-                  All Transactions
                 </div>
 
                 <div
@@ -2052,182 +1972,6 @@ function App() {
     </div>
   );
 
-  // ✅ Render All Transactions Page
-  const renderTransactions = () => (
-    <div className="card">
-      <div className="text-center mb-3">
-        <button 
-          className="btn btn-outline" 
-          onClick={() => setStep("home")} 
-          disabled={loading}
-          style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
-        >
-          <BackIcon />
-          Back
-        </button>
-      </div>
-      
-      <h2 className="text-center mb-4">All Transactions</h2>
-      
-      {/* Transaction Statistics */}
-      {transactionStats && (
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", 
-          gap: "var(--spacing-sm)",
-          marginBottom: "var(--spacing-md)"
-        }}>
-          <div className="card" style={{ backgroundColor: "#e8f5e8", textAlign: "center" }}>
-            <h4 style={{ margin: 0, color: "var(--accent-green)" }}>Total</h4>
-            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.2rem", fontWeight: "600" }}>
-              {transactionStats.total_transactions}
-            </p>
-          </div>
-          <div className="card" style={{ backgroundColor: "#e3f2fd", textAlign: "center" }}>
-            <h4 style={{ margin: 0, color: "var(--accent-blue)" }}>Successful</h4>
-            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.2rem", fontWeight: "600" }}>
-              {transactionStats.successful_transactions}
-            </p>
-          </div>
-          <div className="card" style={{ backgroundColor: "#fff3e0", textAlign: "center" }}>
-            <h4 style={{ margin: 0, color: "var(--accent-orange)" }}>Pending</h4>
-            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.2rem", fontWeight: "600" }}>
-              {transactionStats.pending_transactions}
-            </p>
-          </div>
-          <div className="card" style={{ backgroundColor: "#ffebee", textAlign: "center" }}>
-            <h4 style={{ margin: 0, color: "var(--accent-salmon)" }}>Failed</h4>
-            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.2rem", fontWeight: "600" }}>
-              {transactionStats.failed_transactions}
-            </p>
-          </div>
-        </div>
-      )}
-      
-      {/* Filters */}
-      <div style={{ 
-        display: "flex", 
-        gap: "var(--spacing-sm)", 
-        marginBottom: "var(--spacing-md)",
-        flexWrap: "wrap"
-      }}>
-        <select 
-          value={transactionFilters.status} 
-          onChange={(e) => handleTransactionFilterChange('status', e.target.value)}
-          className="form-input"
-          style={{ flex: 1, minWidth: "120px" }}
-        >
-          <option value="">All Status</option>
-          <option value="success">Successful</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
-        </select>
-        
-        <button 
-          className="btn btn-primary" 
-          onClick={loadAllTransactions}
-          disabled={loading}
-          style={{ minWidth: "100px" }}
-        >
-          {loading ? "Loading..." : "Refresh"}
-        </button>
-      </div>
-      
-      {/* Transactions List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
-        {allTransactions.length === 0 ? (
-          <div style={{ 
-            textAlign: "center", 
-            padding: "var(--spacing-lg)",
-            color: "var(--gray-medium)"
-          }}>
-            {loading ? "Loading transactions..." : "No transactions found"}
-          </div>
-        ) : (
-          allTransactions.map((transaction) => (
-            <div 
-              key={transaction.id} 
-              className="card" 
-              style={{ 
-                backgroundColor: "var(--gray-light)",
-                borderLeft: `4px solid ${
-                  transaction.status === 'success' ? 'var(--accent-green)' :
-                  transaction.status === 'pending' ? 'var(--accent-orange)' :
-                  'var(--accent-salmon)'
-                }`
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--spacing-xs)" }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: "1rem" }}>
-                    {transaction.customer_name || `Customer ${transaction.phone}`}
-                  </h4>
-                  <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
-                    {transaction.route_name} - {transaction.sacco_name}
-                  </p>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: "600" }}>
-                    {transaction.amount} KES
-                  </p>
-                  <span style={{ 
-                    fontSize: "0.8rem", 
-                    padding: "2px 8px", 
-                    borderRadius: "var(--radius-sm)",
-                    backgroundColor: 
-                      transaction.status === 'success' ? '#e8f5e8' :
-                      transaction.status === 'pending' ? '#fff3e0' :
-                      '#ffebee',
-                    color: 
-                      transaction.status === 'success' ? 'var(--accent-green)' :
-                      transaction.status === 'pending' ? 'var(--accent-orange)' :
-                      'var(--accent-salmon)'
-                  }}>
-                    {transaction.status.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", color: "var(--gray-medium)" }}>
-                <div>
-                  <div>Phone: {transaction.phone}</div>
-                  {transaction.mpesa_transaction_id && (
-                    <div>M-Pesa ID: {transaction.mpesa_transaction_id}</div>
-                  )}
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div>{new Date(transaction.created_at).toLocaleDateString()}</div>
-                  <div>{new Date(transaction.created_at).toLocaleTimeString()}</div>
-                  {transaction.wallet_credited && (
-                    <div style={{ color: "var(--accent-green)", fontWeight: "600" }}>
-                      ✓ Wallet Credited
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      
-      {/* Load More Button */}
-      {allTransactions.length >= transactionFilters.limit && (
-        <div style={{ textAlign: "center", marginTop: "var(--spacing-md)" }}>
-          <button 
-            className="btn btn-outline" 
-            onClick={() => {
-              setTransactionFilters(prev => ({ ...prev, offset: prev.offset + prev.limit }));
-              loadAllTransactions();
-            }}
-            disabled={loading}
-          >
-            Load More
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div style={{ 
       padding: step === "home" ? "0" : "var(--spacing-md)", 
@@ -2244,7 +1988,6 @@ function App() {
       {step === "nameCapture" && renderNameCapture()}
       {step === "history" && renderPaymentHistory()}
       {step === "profile" && renderProfile()}
-      {step === "transactions" && renderTransactions()}
     </div>
   );
 }

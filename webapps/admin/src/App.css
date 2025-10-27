@@ -583,6 +583,20 @@ table tr:hover {
   font-weight: 600;
 }
 
+/* Loading state */
+.loading-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gray-medium);
+  font-size: 1.1rem;
+}
+
+/* Button disabled state */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .date {
   font-size: 0.9rem;
   color: #666;

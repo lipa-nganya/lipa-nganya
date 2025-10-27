@@ -6,6 +6,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:7070';
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [loading, setLoading] = useState(false);
   
   // Data states
   const [saccos, setSaccos] = useState([]);
@@ -58,6 +59,7 @@ function App() {
   // Load dashboard data
   const loadDashboardData = async () => {
     try {
+      setLoading(true);
       console.log('🔄 Loading admin dashboard data...');
       const [statsRes, saccosRes, matatusRes, driversRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/admin/dashboard`),
@@ -85,6 +87,8 @@ function App() {
     } catch (error) {
       console.error('❌ Error loading data:', error);
       alert('Failed to load dashboard data. Please check if the backend is running.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -251,7 +255,14 @@ function App() {
     if (currentView === 'transactions') {
       loadTransactions();
     }
-  }, [currentView, transactionFilters]);
+  }, [currentView]);
+
+  // Load dashboard data when admin logs in
+  useEffect(() => {
+    if (isLoggedIn && currentView === 'dashboard') {
+      loadDashboardData();
+    }
+  }, [isLoggedIn, currentView]);
 
   // Main admin interface
   return (
@@ -300,43 +311,49 @@ function App() {
           <div className="dashboard">
             <div className="dashboard-header">
               <h2>Dashboard Overview</h2>
-              <button onClick={loadDashboardData} className="btn-secondary">
-                🔄 Refresh Data
+              <button onClick={loadDashboardData} className="btn-secondary" disabled={loading}>
+                {loading ? '⏳ Loading...' : '🔄 Refresh Data'}
               </button>
             </div>
             
-            <div className="stats-grid">
-              <div className="stat-card">
-                <h3>Saccos</h3>
-                <p className="stat-number">{stats.saccos || 0}</p>
-                <p className="stat-description">Transport companies</p>
+            {loading ? (
+              <div className="loading-state">
+                <p>Loading dashboard data...</p>
               </div>
-              <div className="stat-card">
-                <h3>Matatus</h3>
-                <p className="stat-number">{stats.matatus || 0}</p>
-                <p className="stat-description">Active routes</p>
-              </div>
-              <div className="stat-card">
-                <h3>Drivers</h3>
-                <p className="stat-number">{stats.drivers || 0}</p>
-                <p className="stat-description">Licensed drivers</p>
-              </div>
-              <div className="stat-card">
-                <h3>Conductors</h3>
-                <p className="stat-number">{stats.conductors || 0}</p>
-                <p className="stat-description">Fare collectors</p>
-              </div>
-              <div className="stat-card">
-                <h3>Customers</h3>
-                <p className="stat-number">{stats.customers || 0}</p>
-                <p className="stat-description">Registered users</p>
-              </div>
-              <div className="stat-card">
-                <h3>Payments</h3>
-                <p className="stat-number">{stats.completedPayments || 0}</p>
-                <p className="stat-description">Successful transactions</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <h3>Saccos</h3>
+                    <p className="stat-number">{stats.saccos || 0}</p>
+                    <p className="stat-description">Transport companies</p>
+                  </div>
+                  <div className="stat-card">
+                    <h3>Matatus</h3>
+                    <p className="stat-number">{stats.matatus || 0}</p>
+                    <p className="stat-description">Active routes</p>
+                  </div>
+                  <div className="stat-card">
+                    <h3>Drivers</h3>
+                    <p className="stat-number">{stats.drivers || 0}</p>
+                    <p className="stat-description">Licensed drivers</p>
+                  </div>
+                  <div className="stat-card">
+                    <h3>Conductors</h3>
+                    <p className="stat-number">{stats.conductors || 0}</p>
+                    <p className="stat-description">Fare collectors</p>
+                  </div>
+                  <div className="stat-card">
+                    <h3>Customers</h3>
+                    <p className="stat-number">{stats.customers || 0}</p>
+                    <p className="stat-description">Registered users</p>
+                  </div>
+                  <div className="stat-card">
+                    <h3>Payments</h3>
+                    <p className="stat-number">{stats.completedPayments || 0}</p>
+                    <p className="stat-description">Successful transactions</p>
+                  </div>
+                </div>
 
             {/* Recent Activity */}
             <div className="recent-activity">
@@ -398,6 +415,8 @@ function App() {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
 
