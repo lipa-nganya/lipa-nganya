@@ -191,18 +191,18 @@ app.get("/api/matatus/:id", async (req, res) => {
   console.log(`🔍 Fetching matatu with ID: ${matatuId}`);
   
   try {
-    // For now, return mock data - in production this would query the database
-    const mockMatatu = {
-      id: parseInt(matatuId),
-      number: "KCA123A",
-      route_name: "Route 1",
-      sacco_name: "Sacco A",
-      plate_number: "KCA123A",
-      routes: ["Route 1", "Route 2", "Route 3"]
-    };
+    const result = await pool.query(
+      'SELECT m.*, s.name as sacco_name FROM matatus m JOIN saccos s ON m.sacco_id = s.id WHERE m.id = $1',
+      [matatuId]
+    );
     
-    console.log(`✅ Matatu found:`, mockMatatu);
-    res.json(mockMatatu);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Matatu not found" });
+    }
+    
+    const matatu = result.rows[0];
+    console.log(`✅ Matatu found:`, matatu);
+    res.json(matatu);
     
   } catch (error) {
     console.error(`❌ Error fetching matatu:`, error);
@@ -217,28 +217,14 @@ app.get("/api/matatus/:id/payments", async (req, res) => {
   console.log(`🔍 Fetching payments for matatu ID: ${id}`);
   
   try {
-    // Mock payments data - in production this would query the database
-    const mockPayments = [
-      {
-        id: 1,
-        amount: 50,
-        phone: "254708374153",
-        status: "success",
-        created_at: new Date().toISOString(),
-        customer_name: "John Doe"
-      },
-      {
-        id: 2,
-        amount: 30,
-        phone: "254712345678",
-        status: "success",
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        customer_name: "Jane Smith"
-      }
-    ];
+    const result = await pool.query(
+      'SELECT p.*, c.name as customer_name FROM payments p LEFT JOIN customers c ON p.customer_id = c.id WHERE p.matatu_id = $1 ORDER BY p.created_at DESC',
+      [id]
+    );
     
-    console.log(`✅ Found ${mockPayments.length} payments for matatu ${id}`);
-    res.json(mockPayments);
+    const payments = result.rows;
+    console.log(`✅ Found ${payments.length} payments for matatu ${id}`);
+    res.json(payments);
     
   } catch (error) {
     console.error(`❌ Error fetching payments:`, error);
@@ -253,15 +239,38 @@ app.get("/api/matatus/:id/earnings", async (req, res) => {
   console.log(`🔍 Fetching earnings for matatu ID: ${id}`);
   
   try {
-    // Mock earnings data - in production this would calculate from database
-    const mockEarnings = {
-      today: 1500,
-      week: 8500,
-      month: 35000
+    // Calculate earnings from actual payments
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const [todayResult, weekResult, monthResult] = await Promise.all([
+      pool.query(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE matatu_id = $1 AND status = $2 AND created_at >= $3',
+        [id, 'completed', today]
+      ),
+      pool.query(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE matatu_id = $1 AND status = $2 AND created_at >= $3',
+        [id, 'completed', weekStart]
+      ),
+      pool.query(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE matatu_id = $1 AND status = $2 AND created_at >= $3',
+        [id, 'completed', monthStart]
+      )
+    ]);
+    
+    const earnings = {
+      today: parseFloat(todayResult.rows[0].total),
+      week: parseFloat(weekResult.rows[0].total),
+      month: parseFloat(monthResult.rows[0].total)
     };
     
-    console.log(`✅ Earnings for matatu ${id}:`, mockEarnings);
-    res.json(mockEarnings);
+    console.log(`✅ Earnings for matatu ${id}:`, earnings);
+    res.json(earnings);
     
   } catch (error) {
     console.error(`❌ Error fetching earnings:`, error);

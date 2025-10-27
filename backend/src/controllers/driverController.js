@@ -1,4 +1,5 @@
 import axios from 'axios';
+import pool from '../config/db.js';
 
 // Advanta SMS API configuration
 const ADVANTA_API_URL = 'https://quicksms.advantasms.com/api/services/sendsms/';
@@ -128,27 +129,71 @@ const createOrFindDriver = async (phoneNumber) => {
   try {
     console.log(`🔍 Creating/finding driver/conductor for phone: ${phoneNumber}`);
     
-    // For now, create a mock driver/conductor - in production this would query the database
-    const driver = {
-      id: 1,
-      name: `Driver ${phoneNumber.slice(-4)}`, // Use last 4 digits of phone
-      phone: phoneNumber,
-      role: "driver", // or "conductor" - this would come from database
-      matatu_id: 1, // This would be looked up from database
-      hasPin: false, // This would come from database
-      created_at: new Date().toISOString()
+    // Check if driver/conductor already exists
+    const existingDriver = await pool.query(
+      'SELECT * FROM drivers WHERE phone = $1',
+      [phoneNumber]
+    );
+    
+    if (existingDriver.rows.length > 0) {
+      const driver = existingDriver.rows[0];
+      
+      // Get matatu information
+      const matatuResult = await pool.query(
+        'SELECT m.*, s.name as sacco_name FROM matatus m JOIN saccos s ON m.sacco_id = s.id WHERE m.id = $1',
+        [driver.matatu_id]
+      );
+      
+      const matatu = matatuResult.rows[0] || {
+        id: driver.matatu_id,
+        route_name: 'Unknown Route',
+        sacco_name: 'Unknown Sacco'
+      };
+      
+      console.log(`✅ Found existing driver/conductor:`, driver);
+      return { 
+        driver: {
+          ...driver,
+          hasPin: !!driver.pin
+        }, 
+        matatu 
+      };
+    }
+    
+    // Create new driver/conductor (assign to first available matatu)
+    const matatuResult = await pool.query('SELECT * FROM matatus LIMIT 1');
+    if (matatuResult.rows.length === 0) {
+      throw new Error('No matatus available');
+    }
+    
+    const matatu = matatuResult.rows[0];
+    
+    const newDriver = await pool.query(
+      'INSERT INTO drivers (name, phone, role, matatu_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [`Driver ${phoneNumber.slice(-4)}`, phoneNumber, 'driver', matatu.id]
+    );
+    
+    const driver = newDriver.rows[0];
+    
+    // Get sacco name
+    const saccoResult = await pool.query(
+      'SELECT name FROM saccos WHERE id = $1',
+      [matatu.sacco_id]
+    );
+    
+    const matatuWithSacco = {
+      ...matatu,
+      sacco_name: saccoResult.rows[0]?.name || 'Unknown Sacco'
     };
     
-    const matatu = {
-      id: 1,
-      number: "KCA123A", // This would come from database
-      route_name: "Route 1",
-      sacco_name: "Sacco A",
-      routes: ["Route 1", "Route 2", "Route 3"]
+    console.log(`✅ Created new driver/conductor:`, driver);
+    return { 
+      driver: {
+        ...driver,
+        hasPin: false
+      }, 
+      matatu: matatuWithSacco 
     };
-    
-    console.log(`✅ Driver/conductor created/found:`, driver);
-    return { driver, matatu };
     
   } catch (error) {
     console.error(`❌ Error creating/finding driver:`, error);
@@ -175,12 +220,22 @@ export const setupPin = async (req, res) => {
   }
 
   try {
-    // In production, this would:
-    // 1. Hash the PIN using bcrypt
-    // 2. Store it in the database
-    // 3. Update the driver/conductor record
+    // In production, this would hash the PIN using bcrypt
+    // For now, we'll store it as plain text (NOT RECOMMENDED FOR PRODUCTION)
+    const hashedPin = pin; // In production: await bcrypt.hash(pin, 10);
     
-    // For now, just simulate success
+    // Update the driver/conductor record with the PIN
+    const result = await pool.query(
+      'UPDATE drivers SET pin = $1 WHERE phone = $2 RETURNING *',
+      [hashedPin, phoneNumber]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Driver not found"
+      });
+    }
+    
     console.log(`✅ PIN setup successful for phone: ${phoneNumber}`);
     
     res.json({
