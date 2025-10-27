@@ -1512,7 +1512,7 @@ function App() {
         }}>
           {getSortedPayments().map((payment) => (
             <div 
-              key={payment.id} 
+              key={`customer-payment-${payment.id}`} 
               className="card" 
               onClick={() => handlePaymentClick(payment)}
               style={{ 

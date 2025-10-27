@@ -969,7 +969,7 @@ function App() {
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-xs)" }}>
               {payments.slice(0, 5).map((payment) => (
                 <div 
-                  key={payment.id} 
+                  key={`payment-dashboard-${payment.id}`} 
                   className="card" 
                   style={{ 
                     backgroundColor: payment.status === 'success' ? "#e8f5e8" : "#ffe6e6",
@@ -1021,7 +1021,7 @@ function App() {
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
               {recentTransactions.slice(0, 5).map((transaction) => (
                 <div 
-                  key={transaction.id} 
+                  key={`${transaction.wallet_type || 'unknown'}-${transaction.id}`} 
                   className="card" 
                   style={{ 
                     backgroundColor: transaction.amount > 0 ? "#e8f5e8" : "#ffe6e6",
@@ -1323,7 +1323,7 @@ function App() {
             ) : (
               payments.map((transaction) => (
                 <div 
-                  key={transaction.id} 
+                  key={`payment-${transaction.id}`} 
                   className="card" 
                   style={{ 
                     backgroundColor: "var(--gray-light)",
