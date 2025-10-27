@@ -155,6 +155,11 @@ function App() {
   const handleMenuClick = (menuStep) => {
     setStep(menuStep);
     setIsMenuOpen(false);
+    
+    // Load payment history when navigating to payments page
+    if (menuStep === "history" && customer) {
+      loadPaymentHistory();
+    }
   };
 
   // Google Sign-In handler
@@ -177,10 +182,15 @@ function App() {
         
         // Try to find customer by phone number if available
         if (phone) {
-          await findCustomerByPhone(phone, data.user.name, data.user.email);
+          const foundCustomer = await findCustomerByPhone(phone, data.user.name, data.user.email);
+          // Load payment history if customer was found
+          if (foundCustomer) {
+            loadPaymentHistory();
+          }
         }
         
-        setStep("home");
+        // Redirect to profile page after successful sign-in
+        setStep("profile");
       } else {
         setError("Login failed. Please try again.");
       }
