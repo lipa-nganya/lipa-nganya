@@ -85,14 +85,19 @@ function App() {
         const customerData = JSON.parse(savedCustomer);
         setCustomer(customerData);
         setIsAuthenticated(true);
-        // Load payment history if customer exists
-        loadPaymentHistory();
       } catch (error) {
         console.error('Error parsing saved customer:', error);
         localStorage.removeItem('lipaNganyaCustomer');
       }
     }
   }, []);
+
+  // Load payment history when customer is available
+  useEffect(() => {
+    if (customer && isAuthenticated) {
+      loadPaymentHistory();
+    }
+  }, [customer, isAuthenticated]);
 
   const handlePayFareClick = () => {
     setStep("matatuCheck");
@@ -121,13 +126,6 @@ function App() {
     }
     setStep("history");
     await loadPaymentHistory();
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setCustomer(null);
-    setPaymentHistory([]);
-    setStep("home");
   };
 
   const toggleMenu = () => {
