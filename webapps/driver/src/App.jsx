@@ -236,11 +236,12 @@ function App() {
       });
 
       if (otpResponse.ok) {
+        const otpData = await otpResponse.json();
         setOtpSent(true);
         console.log(`✅ OTP sent for matatu ${matatuNumber}`);
         // For testing: show OTP in console
-        if (data.otp) {
-          console.log(`🔑 TESTING OTP: ${data.otp}`);
+        if (otpData.otp) {
+          console.log(`🔑 TESTING OTP: ${otpData.otp}`);
         }
       } else {
         const errorData = await otpResponse.json();
