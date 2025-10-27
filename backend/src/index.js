@@ -480,6 +480,160 @@ app.post("/api/wallet/matatu/:matatuId/credit", async (req, res) => {
   }
 });
 
+// ✅ Local callback endpoint for testing (bypasses M-Pesa)
+app.post("/api/test/local-callback", async (req, res) => {
+  try {
+    console.log('🧪 Local callback test endpoint called');
+    
+    // Get the latest pending payment
+    const latestPaymentResult = await pool.query(
+      'SELECT * FROM payments WHERE status = $1 ORDER BY created_at DESC LIMIT 1',
+      ['pending']
+    );
+    
+    if (latestPaymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No pending payments found' });
+    }
+    
+    const payment = latestPaymentResult.rows[0];
+    
+    // Simulate M-Pesa callback data
+    const mockCallbackData = {
+      Body: {
+        stkCallback: {
+          ResultCode: 0, // Success
+          CallbackMetadata: {
+            Item: [
+              { Name: "Amount", Value: parseFloat(payment.amount) },
+              { Name: "PhoneNumber", Value: payment.phone },
+              { Name: "MpesaReceiptNumber", Value: `LOCAL${Date.now()}` }
+            ]
+          }
+        }
+      }
+    };
+    
+    console.log('📱 Simulating M-Pesa callback with data:', JSON.stringify(mockCallbackData, null, 2));
+    
+    // Process the callback using the same logic as the real callback
+    const items = mockCallbackData.Body.stkCallback.CallbackMetadata.Item;
+    const resultCode = mockCallbackData.Body.stkCallback.ResultCode;
+    const amount = items.find((i) => i.Name === "Amount")?.Value;
+    const phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
+    const mpesaTransactionId = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
+    
+    console.log(`📱 Processing callback: Phone: ${phone}, Amount: ${amount}, Result: ${resultCode}`);
+    
+    if (resultCode === 0) {
+      // Payment successful - update payment status
+      const updateResult = await pool.query(
+        "UPDATE payments SET status='success', mpesa_transaction_id=$3 WHERE phone=$1 AND amount=$2 AND status='pending' RETURNING *",
+        [phone, amount, mpesaTransactionId]
+      );
+      
+      if (updateResult.rows.length > 0) {
+        const updatedPayment = updateResult.rows[0];
+        console.log(`✅ Payment updated to success: ${updatedPayment.id}`);
+        
+        // Automatically credit payment to matatu wallet
+        console.log(`💰 Auto-crediting payment to matatu wallet...`);
+        const walletResult = await creditPaymentToMatatuWallet({
+          matatuId: updatedPayment.matatu_id,
+          amount: parseFloat(amount),
+          phone: phone,
+          mpesaTransactionId: mpesaTransactionId
+        });
+        
+        if (walletResult.success) {
+          console.log(`✅ Payment automatically credited to matatu wallet: ${walletResult.newBalance}`);
+          res.json({
+            success: true,
+            message: 'Local callback processed successfully',
+            payment: updatedPayment,
+            walletBalance: walletResult.newBalance
+          });
+        } else {
+          console.error(`❌ Failed to credit payment to wallet: ${walletResult.error}`);
+          res.status(500).json({
+            success: false,
+            error: 'Failed to credit payment to wallet',
+            details: walletResult.error
+          });
+        }
+      } else {
+        console.log('⚠️ No pending payment found to update');
+        res.status(404).json({ error: 'No pending payment found' });
+      }
+    } else {
+      res.status(400).json({ error: 'Callback simulation failed' });
+    }
+  } catch (error) {
+    console.error('❌ Error processing local callback:', error);
+    res.status(500).json({ error: 'Error processing callback', details: error.message });
+  }
+});
+
+// ✅ Manual callback processor for latest pending payment
+app.post("/api/test/process-latest-callback", async (req, res) => {
+  try {
+    console.log('🧪 Processing latest pending payment as successful callback...');
+    
+    // Get the latest pending payment
+    const latestPaymentResult = await pool.query(
+      'SELECT * FROM payments WHERE status = $1 ORDER BY created_at DESC LIMIT 1',
+      ['pending']
+    );
+    
+    if (latestPaymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No pending payments found' });
+    }
+    
+    const payment = latestPaymentResult.rows[0];
+    const mpesaTransactionId = `MANUAL${Date.now()}`;
+    
+    console.log(`📱 Processing payment ${payment.id}: Phone: ${payment.phone}, Amount: ${payment.amount}`);
+    
+    // Update payment to success
+    const updateResult = await pool.query(
+      "UPDATE payments SET status='success', mpesa_transaction_id=$1 WHERE id=$2 RETURNING *",
+      [mpesaTransactionId, payment.id]
+    );
+    
+    if (updateResult.rows.length > 0) {
+      console.log(`✅ Payment ${payment.id} updated to success`);
+      
+      // Credit to matatu wallet
+      const walletResult = await creditPaymentToMatatuWallet({
+        matatuId: payment.matatu_id,
+        amount: parseFloat(payment.amount),
+        phone: payment.phone,
+        mpesaTransactionId: mpesaTransactionId
+      });
+      
+      if (walletResult.success) {
+        console.log(`✅ Payment credited to matatu wallet: ${walletResult.newBalance}`);
+        res.json({
+          success: true,
+          message: 'Latest payment processed successfully',
+          payment: updateResult.rows[0],
+          walletBalance: walletResult.newBalance
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to credit payment to wallet',
+          details: walletResult.error
+        });
+      }
+    } else {
+      res.status(500).json({ error: 'Failed to update payment status' });
+    }
+  } catch (error) {
+    console.error('❌ Error processing latest callback:', error);
+    res.status(500).json({ error: 'Error processing callback', details: error.message });
+  }
+});
+
 // ✅ Direct wallet crediting for successful payments
 app.post("/api/test/credit-wallet/:paymentId", async (req, res) => {
   const { paymentId } = req.params;

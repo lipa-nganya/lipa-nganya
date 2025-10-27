@@ -168,6 +168,9 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
 export const mpesaCallback = async (req, res) => {
   const pool = req.pool;
   const callbackData = req.body;
+  
+  console.log('📱 Raw callback received:', JSON.stringify(callbackData, null, 2));
+  
   const items = callbackData.Body?.stkCallback?.CallbackMetadata?.Item || [];
   const resultCode = callbackData.Body?.stkCallback?.ResultCode;
 
