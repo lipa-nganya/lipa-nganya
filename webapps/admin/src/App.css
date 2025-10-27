@@ -1,14 +1,16 @@
-/* Admin Panel Styles */
+/* Admin Panel Styles - Desktop Only */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
+html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background-color: #f5f5f5;
   color: #333;
+  min-width: 1200px !important; /* Force desktop minimum width */
+  overflow-x: auto !important;
 }
 
 /* Login Styles */
@@ -102,10 +104,11 @@ body {
 
 .admin-main {
   flex: 1;
-  padding: 3rem;
-  max-width: 1400px;
+  padding: 4rem !important;
+  max-width: 1600px !important;
   margin: 0 auto;
   width: 100%;
+  min-width: 1200px !important;
 }
 
 /* Dashboard */
@@ -123,23 +126,25 @@ body {
 }
 
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  margin-bottom: 3rem;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 3rem !important;
+  margin-bottom: 4rem !important;
+  min-width: 1000px !important;
 }
 
 .stat-card {
   background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 3rem !important;
+  border-radius: 15px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15) !important;
   text-align: center;
-  border-left: 5px solid #3498db;
-  min-height: 140px;
+  border-left: 6px solid #3498db !important;
+  min-height: 180px !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 300px !important;
 }
 
 .stat-card h3 {
@@ -151,10 +156,10 @@ body {
 }
 
 .stat-number {
-  font-size: 3.5rem;
+  font-size: 4.5rem !important;
   font-weight: 700;
   color: #2c3e50;
-  margin: 0.5rem 0;
+  margin: 1rem 0 !important;
 }
 
 .stat-description {
@@ -175,9 +180,10 @@ body {
 }
 
 .activity-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2.5rem;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 3rem !important;
+  min-width: 1200px !important;
 }
 
 .activity-section {
@@ -238,10 +244,11 @@ body {
 /* Forms */
 .form-section {
   background: white;
-  padding: 3rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin-bottom: 3rem;
+  padding: 4rem !important;
+  border-radius: 15px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15) !important;
+  margin-bottom: 4rem !important;
+  min-width: 800px !important;
 }
 
 .form-section h3 {
@@ -332,9 +339,10 @@ body {
 /* Tables */
 .list-section {
   background: white;
-  padding: 3rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 4rem !important;
+  border-radius: 15px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15) !important;
+  min-width: 1000px !important;
 }
 
 .list-section h3 {
