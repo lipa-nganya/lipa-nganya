@@ -1,68 +1,93 @@
+/* Desktop-only admin styles - override all defaults */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+  color: #333 !important;
+  background-color: #f5f5f5 !important;
+  font-synthesis: none !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+* {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
-a:hover {
-  color: #535bf2;
+
+html {
+  min-width: 1200px !important;
+  overflow-x: auto !important;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  margin: 0 !important;
+  min-width: 1200px !important;
+  min-height: 100vh !important;
+  background-color: #f5f5f5 !important;
+  color: #333 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  display: block !important;
+  place-items: unset !important;
+}
+
+#root {
+  min-width: 1200px !important;
+  width: 100% !important;
+  height: 100vh !important;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: 2.5em !important;
+  line-height: 1.1 !important;
+  color: #2c3e50 !important;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  padding: 0.8em 1.5em !important;
+  font-size: 1em !important;
+  font-weight: 500 !important;
+  font-family: inherit !important;
+  cursor: pointer !important;
+  transition: all 0.25s !important;
 }
 
+button:hover {
+  opacity: 0.9 !important;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 2px solid #3498db !important;
+}
+
+/* Override any media queries */
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: #333 !important;
+    background-color: #f5f5f5 !important;
   }
-  a:hover {
-    color: #747bff;
+  
+  body {
+    background-color: #f5f5f5 !important;
+    color: #333 !important;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #333 !important;
+    background-color: #f5f5f5 !important;
+  }
+  
+  body {
+    background-color: #f5f5f5 !important;
+    color: #333 !important;
   }
 }
