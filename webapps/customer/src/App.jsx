@@ -1103,8 +1103,8 @@ function App() {
       </div>
       
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
-        <div>
-          <label style={{ display: "block", marginBottom: "var(--spacing-xs)", fontWeight: "500" }}>
+        <div className="form-group">
+          <label className="form-label">
             First Name
           </label>
           <input
@@ -1112,13 +1112,18 @@ function App() {
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder="Enter your first name"
-            className="input"
+            className="form-input"
             disabled={loading}
+            style={{ 
+              fontSize: "1.1rem",
+              padding: "var(--spacing-md)",
+              minHeight: "56px"
+            }}
           />
         </div>
         
-        <div>
-          <label style={{ display: "block", marginBottom: "var(--spacing-xs)", fontWeight: "500" }}>
+        <div className="form-group">
+          <label className="form-label">
             Last Name
           </label>
           <input
@@ -1126,25 +1131,51 @@ function App() {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             placeholder="Enter your last name"
-            className="input"
+            className="form-input"
             disabled={loading}
+            style={{ 
+              fontSize: "1.1rem",
+              padding: "var(--spacing-md)",
+              minHeight: "56px"
+            }}
           />
         </div>
         
-        <div style={{ backgroundColor: "var(--gray-light)", padding: "var(--spacing-sm)", borderRadius: "var(--radius-sm)" }}>
-          <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--gray-medium)" }}>
-            <strong>Phone Number:</strong> {phone}
-          </p>
+        <div className="form-group">
+          <label className="form-label">
+            Phone Number
+          </label>
+          <div style={{ 
+            backgroundColor: "var(--gray-light)", 
+            padding: "var(--spacing-md)", 
+            borderRadius: "var(--radius-sm)",
+            border: "2px solid var(--gray-light)",
+            fontSize: "1.1rem",
+            minHeight: "56px",
+            display: "flex",
+            alignItems: "center"
+          }}>
+            <span style={{ color: "var(--gray-medium)", fontWeight: "500" }}>
+              {phone}
+            </span>
+          </div>
         </div>
         
         {error && (
           <div style={{ 
             color: "var(--accent-salmon)", 
             backgroundColor: "#ffe6e6", 
-            padding: "var(--spacing-sm)", 
+            padding: "var(--spacing-md)", 
             borderRadius: "var(--radius-sm)",
-            fontSize: "0.9rem"
+            fontSize: "0.95rem",
+            border: "1px solid #ffcccc",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--spacing-xs)"
           }}>
+            <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
             {error}
           </div>
         )}
@@ -1153,8 +1184,31 @@ function App() {
           className="btn btn-primary" 
           onClick={handleNameCapture}
           disabled={loading || !firstName.trim() || !lastName.trim()}
+          style={{
+            fontSize: "1.1rem",
+            fontWeight: "600",
+            minHeight: "60px",
+            marginTop: "var(--spacing-sm)"
+          }}
         >
-          {loading ? "Creating Account..." : "Create Account"}
+          {loading ? (
+            <>
+              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+              </svg>
+              Creating Account...
+            </>
+          ) : (
+            <>
+              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="8.5" cy="7" r="4"/>
+                <line x1="20" y1="8" x2="20" y2="14"/>
+                <line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              Create Account
+            </>
+          )}
         </button>
       </div>
     </div>
