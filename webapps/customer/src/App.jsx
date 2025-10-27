@@ -571,7 +571,7 @@ function App() {
   // ✅ Render helpers
   const renderHome = () => (
     <div>
-      {/* Header with Hamburger Menu */}
+      {/* Header with Hamburger Menu and Welcome Message */}
       <div style={{
         position: "fixed",
         top: 0,
@@ -582,7 +582,7 @@ function App() {
         boxShadow: "var(--shadow-sm)",
         zIndex: 1000,
         display: "flex",
-        justifyContent: "flex-start",
+        justifyContent: "space-between",
         alignItems: "center"
       }}>
         <button
@@ -600,6 +600,32 @@ function App() {
         >
           {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
         </button>
+        
+        {/* Welcome Message */}
+        {isAuthenticated && customer && (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            textAlign: "right"
+          }}>
+            <p style={{ 
+              margin: 0, 
+              fontSize: "1rem", 
+              fontWeight: "600",
+              color: "var(--text-primary)"
+            }}>
+              Welcome, {customer.name ? customer.name.split(' ')[0] : "Customer"}!
+            </p>
+            <p style={{ 
+              margin: "var(--spacing-xs) 0 0 0", 
+              fontSize: "0.85rem", 
+              color: "var(--gray-medium)" 
+            }}>
+              {customer.phone}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Hamburger Menu Overlay */}
@@ -756,20 +782,6 @@ function App() {
           </button>
         </div>
 
-        {/* User info */}
-        {isAuthenticated && customer && (
-          <div className="card" style={{ 
-            backgroundColor: "var(--gray-light)", 
-            textAlign: "center"
-          }}>
-            <p style={{ margin: 0, fontSize: "1rem", fontWeight: "600" }}>
-              Welcome, {customer.name || "Customer"}!
-            </p>
-            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
-              Phone: {customer.phone}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
