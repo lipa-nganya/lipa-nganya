@@ -99,7 +99,8 @@ export const getCustomerPayments = async (req, res) => {
   }
 
   try {
-    const query = `
+    // Try the full query first (with created_at and payment_time)
+    let query = `
       SELECT 
         p.id,
         p.amount,
@@ -116,9 +117,35 @@ export const getCustomerPayments = async (req, res) => {
       ORDER BY p.created_at DESC
     `;
     
-    console.log(`📊 Executing query for customer ${customerId}`);
-    const result = await pool.query(query, [customerId]);
-    console.log(`✅ Found ${result.rows.length} payments for customer ${customerId}`);
+    console.log(`📊 Executing full query for customer ${customerId}`);
+    let result;
+    
+    try {
+      result = await pool.query(query, [customerId]);
+      console.log(`✅ Found ${result.rows.length} payments for customer ${customerId} (with timestamps)`);
+    } catch (timestampError) {
+      console.log(`⚠️ Timestamp columns not available, trying simplified query: ${timestampError.message}`);
+      
+      // Fallback query without timestamp columns
+      query = `
+        SELECT 
+          p.id,
+          p.amount,
+          p.phone,
+          p.status,
+          m.route_name,
+          s.name as sacco_name
+        FROM payments p
+        LEFT JOIN matatus m ON p.matatu_id = m.id
+        LEFT JOIN saccos s ON m.sacco_id = s.id
+        WHERE p.customer_id = $1
+        ORDER BY p.id DESC
+      `;
+      
+      console.log(`📊 Executing simplified query for customer ${customerId}`);
+      result = await pool.query(query, [customerId]);
+      console.log(`✅ Found ${result.rows.length} payments for customer ${customerId} (simplified)`);
+    }
     
     res.json(result.rows);
   } catch (err) {
