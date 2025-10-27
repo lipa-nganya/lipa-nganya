@@ -561,19 +561,17 @@ function App() {
         </div>
 
         {/* User info */}
-        {user && (
+        {isAuthenticated && customer && (
           <div className="card" style={{ 
             backgroundColor: "var(--gray-light)", 
             textAlign: "center"
           }}>
             <p style={{ margin: 0, fontSize: "1rem", fontWeight: "600" }}>
-              Welcome, {user.name || customer?.name || "User"}!
+              Welcome, {customer.name || "Customer"}!
             </p>
-            {customer && (
-              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
-                Phone: {customer.phone}
-              </p>
-            )}
+            <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
+              Phone: {customer.phone}
+            </p>
           </div>
         )}
       </div>
