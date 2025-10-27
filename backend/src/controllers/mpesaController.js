@@ -55,6 +55,7 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
     );
 
     const accessToken = tokenResponse.data.access_token;
+    console.log("✅ M-Pesa access token obtained");
 
     // Send STK Push with increased timeout
     const response = await axios.post(
@@ -68,6 +69,8 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
         timeout: 30000 // 30 seconds timeout for STK Push request
       }
     );
+
+    console.log("✅ STK Push request sent successfully:", response.data);
 
     // Create or find customer by phone number
     let customerResult = await pool.query(
@@ -85,6 +88,7 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
           [sanitizedPhone, `Customer ${sanitizedPhone}`, null]
         );
         actualCustomerId = newCustomerResult.rows[0].id;
+        console.log(`✅ Created new customer with ID: ${actualCustomerId}`);
       } catch (insertError) {
         console.error("❌ Error inserting customer:", insertError.message);
         // Try without email column if it doesn't exist
@@ -93,20 +97,65 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
           [sanitizedPhone, `Customer ${sanitizedPhone}`]
         );
         actualCustomerId = newCustomerResult.rows[0].id;
+        console.log(`✅ Created new customer (no email) with ID: ${actualCustomerId}`);
       }
     } else {
       actualCustomerId = customerResult.rows[0].id;
+      console.log(`✅ Found existing customer with ID: ${actualCustomerId}`);
     }
 
     // Insert pending payment
-    await pool.query(
-      "INSERT INTO payments(customer_id, matatu_id, amount, phone, status) VALUES($1,$2,$3,$4,'pending')",
+    const paymentResult = await pool.query(
+      "INSERT INTO payments(customer_id, matatu_id, amount, phone, status) VALUES($1,$2,$3,$4,'pending') RETURNING id",
       [actualCustomerId, matatuId, amount, sanitizedPhone]
     );
+    
+    console.log(`✅ Created pending payment with ID: ${paymentResult.rows[0].id}`);
 
-    res.status(200).json({ message: "STK push initiated", response: response.data });
+    res.status(200).json({ 
+      message: "STK push initiated", 
+      response: response.data,
+      paymentId: paymentResult.rows[0].id,
+      customerId: actualCustomerId
+    });
   } catch (error) {
     console.error("❌ STK Push error:", error.response?.data || error.message);
+    console.error("❌ Error details:", error);
+    
+    // Still try to create customer and payment record even if STK Push fails
+    try {
+      let customerResult = await pool.query(
+        "SELECT id FROM customers WHERE phone = $1",
+        [sanitizedPhone]
+      );
+
+      let actualCustomerId = customerId;
+      
+      if (customerResult.rows.length === 0) {
+        try {
+          const newCustomerResult = await pool.query(
+            "INSERT INTO customers(phone, name) VALUES($1, $2) RETURNING id",
+            [sanitizedPhone, `Customer ${sanitizedPhone}`]
+          );
+          actualCustomerId = newCustomerResult.rows[0].id;
+        } catch (insertError) {
+          console.error("❌ Error inserting customer:", insertError.message);
+        }
+      } else {
+        actualCustomerId = customerResult.rows[0].id;
+      }
+
+      // Insert failed payment
+      await pool.query(
+        "INSERT INTO payments(customer_id, matatu_id, amount, phone, status) VALUES($1,$2,$3,$4,'failed')",
+        [actualCustomerId, matatuId, amount, sanitizedPhone]
+      );
+      
+      console.log("✅ Created failed payment record");
+    } catch (dbError) {
+      console.error("❌ Error creating payment record:", dbError.message);
+    }
+    
     res.status(500).json({
       message: "STK Push failed",
       error: error.response?.data || error.message

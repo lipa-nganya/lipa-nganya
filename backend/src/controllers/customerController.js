@@ -82,6 +82,8 @@ export const createOrFindCustomer = async (req, res) => {
 // ✅ Get customer payment history
 export const getCustomerPayments = async (req, res) => {
   const { customerId } = req.params;
+  
+  console.log(`🔍 Fetching payments for customer ID: ${customerId}`);
 
   if (!customerId) {
     return res.status(400).json({ error: "Customer ID is required" });
@@ -105,11 +107,19 @@ export const getCustomerPayments = async (req, res) => {
       ORDER BY p.created_at DESC
     `;
     
+    console.log(`📊 Executing query for customer ${customerId}`);
     const result = await pool.query(query, [customerId]);
+    console.log(`✅ Found ${result.rows.length} payments for customer ${customerId}`);
+    
     res.json(result.rows);
   } catch (err) {
-    console.error("Error fetching customer payments:", err);
-    res.status(500).json({ error: "Failed to fetch payment history" });
+    console.error(`❌ Error fetching payments for customer ${customerId}:`, err);
+    console.error(`❌ Error details:`, err.message);
+    res.status(500).json({ 
+      error: "Failed to fetch payment history",
+      details: err.message,
+      customerId: customerId
+    });
   }
 };
 

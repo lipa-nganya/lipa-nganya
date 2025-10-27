@@ -303,9 +303,20 @@ function App() {
         // Set up a timeout to check payment status after 30 seconds
         setTimeout(async () => {
           try {
-            // After successful payment, redirect to name capture if not authenticated
-            if (!isAuthenticated) {
-              setStep("nameCapture");
+            // Check if payment was actually successful by looking for payment record
+            if (customer) {
+              await loadPaymentHistory();
+              // If we have payment history, payment was successful
+              if (paymentHistory.length > 0) {
+                if (!isAuthenticated) {
+                  setStep("nameCapture");
+                } else {
+                  setStep("profile");
+                }
+              } else {
+                setError("Payment may not have been completed. Please check your phone and try again.");
+                setStep("payment");
+              }
             } else {
               setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
               setStep("payment");
