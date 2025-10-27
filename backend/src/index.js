@@ -13,21 +13,38 @@ import customerRoutes from "./routes/customerRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import { creditPaymentToMatatuWallet, recalculateWalletBalances } from './services/walletService.js';
 
 const app = express();
 
 // ✅ CORS - allow live frontend and local dev
 app.use(
   cors({
-    origin: [
-      "https://lipa-nganya-customer.onrender.com", // customer app on Render
-      "https://lipa-nganya-driver.onrender.com",   // driver app on Render
-      "https://lipa-nganya.onrender.com",          // legacy frontend
-      "http://localhost:5173",                     // local customer frontend
-      "http://127.0.0.1:5173",                    // alternative local customer frontend
-      "http://localhost:5175",                     // local driver frontend
-      "http://127.0.0.1:5175"                     // alternative local driver frontend
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = [
+        "https://lipa-nganya-customer.onrender.com", // customer app on Render
+        "https://lipa-nganya-driver.onrender.com",   // driver app on Render
+        "https://lipa-nganya-admin.onrender.com",   // admin app on Render
+        "https://lipa-nganya.onrender.com",          // legacy frontend
+        "http://localhost:5173",                     // local customer frontend
+        "http://127.0.0.1:5173",                    // alternative local customer frontend
+        "http://localhost:5175",                     // local driver frontend
+        "http://127.0.0.1:5175",                    // alternative local driver frontend
+        "http://localhost:5176",                     // local admin frontend
+        "http://127.0.0.1:5176"                     // alternative local admin frontend
+      ];
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log(`❌ CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     credentials: true,
@@ -128,6 +145,13 @@ pool
         )
       `);
       
+      // Add wallet_credited column to payments table if it doesn't exist
+      await pool.query(`
+        ALTER TABLE payments 
+        ADD COLUMN IF NOT EXISTS wallet_credited BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS mpesa_transaction_id VARCHAR(100)
+      `);
+      
       console.log("✅ Database tables verified/created");
       
       // Add sample data if needed
@@ -196,7 +220,48 @@ pool
           );
         }
         
+        // Add sample wallet transactions to make balances realistic
+        console.log("📝 Adding sample wallet transactions...");
+        
+        // Add some payment_received transactions for matatu wallets
+        const matatuWallets = await pool.query('SELECT id, matatu_id FROM matatu_wallets');
+        for (const wallet of matatuWallets.rows) {
+          const transactionCount = Math.floor(Math.random() * 10) + 5; // 5-15 transactions
+          for (let i = 0; i < transactionCount; i++) {
+            const amount = Math.floor(Math.random() * 200) + 50; // 50-250 KES
+            const phone = `2547${Math.floor(Math.random() * 100000000)}`;
+            await pool.query(
+              'INSERT INTO wallet_transactions (wallet_type, wallet_id, transaction_type, amount, description, reference_id) VALUES ($1, $2, $3, $4, $5, $6)',
+              ['matatu', wallet.id, 'payment_received', amount, `Customer payment from ${phone}`, `MP${Date.now()}${i}`]
+            );
+          }
+        }
+        
+        // Add some salary payments for driver wallets
+        const driverWallets = await pool.query('SELECT id, driver_id FROM driver_wallets');
+        for (const wallet of driverWallets.rows) {
+          const salaryAmount = Math.floor(Math.random() * 5000) + 2000; // 2000-7000 KES
+          await pool.query(
+            'INSERT INTO wallet_transactions (wallet_type, wallet_id, transaction_type, amount, description, reference_id) VALUES ($1, $2, $3, $4, $5, $6)',
+            ['driver', wallet.id, 'salary_payment', salaryAmount, 'Monthly salary payment', `SAL${Date.now()}`]
+          );
+        }
+        
+        // Add some salary payments for conductor wallets
+        const conductorWallets = await pool.query('SELECT id, conductor_id FROM conductor_wallets');
+        for (const wallet of conductorWallets.rows) {
+          const salaryAmount = Math.floor(Math.random() * 3000) + 1000; // 1000-4000 KES
+          await pool.query(
+            'INSERT INTO wallet_transactions (wallet_type, wallet_id, transaction_type, amount, description, reference_id) VALUES ($1, $2, $3, $4, $5, $6)',
+            ['conductor', wallet.id, 'salary_payment', salaryAmount, 'Monthly salary payment', `SAL${Date.now()}`]
+          );
+        }
+        
         console.log("✅ Sample data added");
+        
+        // Recalculate wallet balances from actual transactions
+        console.log("🔄 Recalculating wallet balances from transactions...");
+        await recalculateWalletBalances();
       }
       
     } catch (error) {
@@ -204,6 +269,16 @@ pool
     }
   })
   .catch((err) => console.error("❌ Database connection error:", err.stack));
+
+// ✅ CORS test endpoint
+app.get("/api/cors-test", (req, res) => {
+  res.json({
+    success: true,
+    message: "CORS is working!",
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // ✅ Test database tables
 app.get("/test-db", async (req, res) => {
@@ -298,6 +373,284 @@ app.use("/api/driver", driverRoutes);
 
 // ✅ Wallet routes
 app.use("/api/wallet", walletRoutes);
+
+// ✅ LP Wallet API endpoints
+app.get("/api/wallet/matatu/:matatuId/balance", async (req, res) => {
+  const { matatuId } = req.params;
+  
+  try {
+    const result = await pool.query(
+      'SELECT balance FROM matatu_wallets WHERE matatu_id = $1',
+      [matatuId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Matatu wallet not found' });
+    }
+    
+    res.json({ 
+      matatuId: parseInt(matatuId),
+      balance: parseFloat(result.rows[0].balance)
+    });
+  } catch (error) {
+    console.error('❌ Error getting matatu wallet balance:', error);
+    res.status(500).json({ error: 'Error getting wallet balance' });
+  }
+});
+
+app.get("/api/wallet/matatu/:matatuId/transactions", async (req, res) => {
+  const { matatuId } = req.params;
+  const limit = parseInt(req.query.limit) || 10;
+  
+  try {
+    const result = await pool.query(
+      `SELECT wt.*, p.phone as customer_phone, c.name as customer_name
+       FROM wallet_transactions wt
+       LEFT JOIN payments p ON wt.reference_id = p.mpesa_transaction_id
+       LEFT JOIN customers c ON p.customer_id = c.id
+       WHERE wt.wallet_type = 'matatu' 
+       AND wt.wallet_id = (SELECT id FROM matatu_wallets WHERE matatu_id = $1)
+       ORDER BY wt.created_at DESC
+       LIMIT $2`,
+      [matatuId, limit]
+    );
+    
+    res.json({
+      matatuId: parseInt(matatuId),
+      transactions: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Error getting matatu wallet transactions:', error);
+    res.status(500).json({ error: 'Error getting wallet transactions' });
+  }
+});
+
+// ✅ Manual wallet credit endpoint (for testing)
+app.post("/api/wallet/matatu/:matatuId/credit", async (req, res) => {
+  const { matatuId } = req.params;
+  const { amount, description, referenceId } = req.body;
+  
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'Valid amount is required' });
+  }
+  
+  try {
+    // Get matatu wallet ID
+    const walletResult = await pool.query(
+      'SELECT id FROM matatu_wallets WHERE matatu_id = $1',
+      [matatuId]
+    );
+    
+    if (walletResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Matatu wallet not found' });
+    }
+    
+    const walletId = walletResult.rows[0].id;
+    
+    // Credit the amount
+    const updateResult = await pool.query(
+      'UPDATE matatu_wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 RETURNING balance',
+      [amount, walletId]
+    );
+    
+    const newBalance = updateResult.rows[0].balance;
+    
+    // Create transaction record
+    await pool.query(
+      'INSERT INTO wallet_transactions (wallet_type, wallet_id, transaction_type, amount, description, reference_id) VALUES ($1, $2, $3, $4, $5, $6)',
+      ['matatu', walletId, 'manual_credit', amount, description || 'Manual credit', referenceId || null]
+    );
+    
+    res.json({
+      success: true,
+      matatuId: parseInt(matatuId),
+      amount: parseFloat(amount),
+      newBalance: parseFloat(newBalance),
+      message: 'Wallet credited successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error crediting wallet:', error);
+    res.status(500).json({ error: 'Error crediting wallet' });
+  }
+});
+
+// ✅ Recalculate wallet balances endpoint
+app.post("/api/wallet/recalculate", async (req, res) => {
+  try {
+    console.log('🔄 Manual wallet balance recalculation requested');
+    const result = await recalculateWalletBalances();
+    
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Wallet balances recalculated successfully' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: result.error 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error recalculating wallet balances:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to recalculate wallet balances' 
+    });
+  }
+});
+
+// ✅ All transactions endpoint - shows all transactions with statuses
+app.get("/api/transactions", async (req, res) => {
+  const { limit = 50, offset = 0, status, matatuId, customerId } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        p.id,
+        p.phone,
+        p.amount,
+        p.status,
+        p.created_at,
+        p.payment_time,
+        p.mpesa_transaction_id,
+        p.wallet_credited,
+        c.name as customer_name,
+        c.email as customer_email,
+        m.id as matatu_id,
+        m.route_name,
+        s.name as sacco_name,
+        wt.id as wallet_transaction_id,
+        wt.transaction_type as wallet_transaction_type,
+        wt.description as wallet_description,
+        wt.created_at as wallet_created_at
+      FROM payments p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      LEFT JOIN matatus m ON p.matatu_id = m.id
+      LEFT JOIN saccos s ON m.sacco_id = s.id
+      LEFT JOIN wallet_transactions wt ON p.mpesa_transaction_id = wt.reference_id
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    let paramCount = 0;
+    
+    if (status) {
+      query += ` AND p.status = $${++paramCount}`;
+      queryParams.push(status);
+    }
+    
+    if (matatuId) {
+      query += ` AND p.matatu_id = $${++paramCount}`;
+      queryParams.push(matatuId);
+    }
+    
+    if (customerId) {
+      query += ` AND p.customer_id = $${++paramCount}`;
+      queryParams.push(customerId);
+    }
+    
+    query += ` ORDER BY p.created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
+    queryParams.push(parseInt(limit), parseInt(offset));
+    
+    const result = await pool.query(query, queryParams);
+    
+    // Get transaction counts by status
+    const countsQuery = `
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM payments 
+      GROUP BY status
+    `;
+    const countsResult = await pool.query(countsQuery);
+    
+    const statusCounts = countsResult.rows.reduce((acc, row) => {
+      acc[row.status] = parseInt(row.count);
+      return acc;
+    }, {});
+    
+    res.json({
+      transactions: result.rows,
+      statusCounts,
+      total: result.rows.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+  } catch (error) {
+    console.error('❌ Error fetching transactions:', error);
+    res.status(500).json({ error: 'Error fetching transactions' });
+  }
+});
+
+// ✅ Transaction statistics endpoint
+app.get("/api/transactions/stats", async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_transactions,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as successful_transactions,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_transactions,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_transactions,
+        COALESCE(SUM(CASE WHEN status = 'success' THEN amount END), 0) as total_amount,
+        COALESCE(AVG(CASE WHEN status = 'success' THEN amount END), 0) as average_amount,
+        COUNT(CASE WHEN wallet_credited = true THEN 1 END) as wallet_credited_count
+      FROM payments
+    `;
+    
+    const result = await pool.query(statsQuery);
+    const stats = result.rows[0];
+    
+    // Get daily transaction counts for the last 7 days
+    const dailyQuery = `
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as count,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as successful_count,
+        COALESCE(SUM(CASE WHEN status = 'success' THEN amount END), 0) as daily_amount
+      FROM payments 
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `;
+    
+    const dailyResult = await pool.query(dailyQuery);
+    
+    res.json({
+      ...stats,
+      dailyTransactions: dailyResult.rows
+    });
+  } catch (error) {
+    console.error('❌ Error fetching transaction stats:', error);
+    res.status(500).json({ error: 'Error fetching transaction stats' });
+  }
+});
+
+// ✅ Admin routes
+// ✅ Admin routes with specific CORS handling
+app.use("/api/admin", (req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    "https://lipa-nganya-admin.onrender.com",
+    "http://localhost:5176",
+    "http://127.0.0.1:5176"
+  ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+app.use("/api/admin", adminRoutes);
 
 // ✅ Matatu search endpoint for driver login
 app.get("/api/matatus/search", async (req, res) => {
