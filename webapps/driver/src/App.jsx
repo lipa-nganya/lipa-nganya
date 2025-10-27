@@ -416,9 +416,29 @@ function App() {
   const renderLogin = () => (
     <div className="card">
       <div className="text-center mb-4">
-        <h2>Driver Login</h2>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "var(--spacing-sm)",
+          marginBottom: "var(--spacing-md)"
+        }}>
+          <BusIcon />
+          <h2 style={{ margin: 0, color: "var(--accent-blue)" }}>Driver Portal</h2>
+        </div>
+        <div style={{
+          backgroundColor: "#e3f2fd",
+          padding: "var(--spacing-sm)",
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)",
+          border: "2px solid var(--accent-blue)"
+        }}>
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--accent-blue)", fontWeight: "600" }}>
+            🚐 MATATU DRIVER ACCESS
+          </p>
+        </div>
         <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
-          Enter your matatu number to access your dashboard
+          Enter your matatu number to access your driver dashboard
         </p>
       </div>
       
@@ -617,20 +637,32 @@ function App() {
             alignItems: "flex-end",
             textAlign: "right"
           }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--spacing-xs)",
+              marginBottom: "var(--spacing-xs)"
+            }}>
+              <BusIcon />
+              <p style={{ 
+                margin: 0, 
+                fontSize: "1rem", 
+                fontWeight: "600",
+                color: "var(--accent-blue)"
+              }}>
+                {driver.name}
+              </p>
+            </div>
             <p style={{ 
               margin: 0, 
-              fontSize: "1rem", 
-              fontWeight: "600",
-              color: "var(--text-primary)"
-            }}>
-              {driver.name}
-            </p>
-            <p style={{ 
-              margin: "var(--spacing-xs) 0 0 0", 
               fontSize: "0.85rem", 
-              color: "var(--gray-medium)" 
+              color: "var(--gray-medium)",
+              backgroundColor: "#e3f2fd",
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--accent-blue)"
             }}>
-              {driver.matatu_number}
+              🚐 {driver.matatu_number}
             </p>
           </div>
         )}

@@ -6,10 +6,10 @@
 }
 
 :root {
-  /* Colors */
-  --bg-primary: #f6f4f0;
+  /* Colors - Driver App Theme */
+  --bg-primary: #f0f4f8;
   --text-primary: #000000;
-  --accent-orange: #ff751f;
+  --accent-orange: #4a90e2; /* Changed to blue for driver app */
   --accent-salmon: #ff6b6b;
   --accent-blue: #4a90e2;
   --accent-green: #27ae60;
@@ -117,7 +117,7 @@ h3 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c42);
+  background: linear-gradient(135deg, var(--accent-blue), #5ba0f2);
   color: var(--white);
 }
 
@@ -256,7 +256,7 @@ h3 {
   width: 48px;
   height: 48px;
   margin: 0 auto var(--spacing-sm);
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c42);
+  background: linear-gradient(135deg, var(--accent-blue), #5ba0f2);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -267,7 +267,7 @@ h3 {
 .dashboard-value {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--accent-orange);
+  color: var(--accent-blue);
   margin-bottom: var(--spacing-xs);
 }
 
