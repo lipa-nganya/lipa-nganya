@@ -403,8 +403,42 @@ function App() {
         }, 30000); // Wait 30 seconds before showing timeout message
         
       } else {
-        setError(data.message || "Failed to initiate payment");
         console.error("STK Push failed:", data);
+        
+        // Provide user-friendly error messages based on M-Pesa error codes
+        let errorMessage = "Failed to initiate payment";
+        
+        if (data.error && data.error.errorCode) {
+          const errorCode = data.error.errorCode;
+          const errorMsg = data.error.errorMessage || "";
+          
+          switch (errorCode) {
+            case "500.003.02":
+              errorMessage = "M-Pesa system is busy. Please try again in a few minutes.";
+              break;
+            case "500.001.1001":
+              errorMessage = "Invalid phone number format. Please use format: 2547XXXXXXXX";
+              break;
+            case "500.001.1002":
+              errorMessage = "Amount must be between KES 1 and KES 70,000";
+              break;
+            case "500.001.1003":
+              errorMessage = "Insufficient balance. Please check your M-Pesa account.";
+              break;
+            case "500.001.1004":
+              errorMessage = "Transaction cancelled by user.";
+              break;
+            case "500.001.1005":
+              errorMessage = "Transaction timed out. Please try again.";
+              break;
+            default:
+              errorMessage = errorMsg || data.message || "Payment failed. Please try again.";
+          }
+        } else {
+          errorMessage = data.message || "Failed to initiate payment";
+        }
+        
+        setError(errorMessage);
       }
     } catch (err) {
       console.error("Failed to connect to server:", err);
@@ -842,9 +876,28 @@ function App() {
           backgroundColor: "#ffe6e6", 
           padding: "var(--spacing-sm)", 
           borderRadius: "var(--radius-sm)",
-          marginBottom: "var(--spacing-md)"
+          marginBottom: "var(--spacing-md)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--spacing-xs)"
         }}>
-          {error}
+          <div>{error}</div>
+          {error.includes("system is busy") && (
+            <button 
+              className="btn btn-outline" 
+              onClick={() => {
+                setError("");
+                handlePayment();
+              }}
+              style={{
+                fontSize: "0.9rem",
+                padding: "var(--spacing-xs)",
+                alignSelf: "flex-start"
+              }}
+            >
+              🔄 Retry Payment
+            </button>
+          )}
         </div>
       )}
       
