@@ -198,9 +198,9 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          driverId: driverData.driver.id,
-          role: driverData.driver.role,
-          matatuId: driverData.driver.matatu_id
+          driverId: driverData.id,
+          role: driverData.role,
+          matatuId: driverData.matatu_id
         })
       });
 
@@ -211,10 +211,10 @@ function App() {
         // Set wallet balances based on role
         setMatatuWallet(walletData.wallets.matatuWallet || 0);
         
-        if (driverData.driver.role === 'driver') {
+        if (driverData.role === 'driver') {
           setDriverWallet(walletData.wallets.driverWallet || 0);
           setConductorWallet(0); // Driver doesn't see conductor wallet
-        } else if (driverData.driver.role === 'conductor') {
+        } else if (driverData.role === 'conductor') {
           setConductorWallet(walletData.wallets.conductorWallet || 0);
           setDriverWallet(0); // Conductor doesn't see driver wallet
         }
@@ -226,16 +226,16 @@ function App() {
         console.error('❌ Failed to load wallet data');
         // Fallback to mock data
         setMatatuWallet(15000);
-        setDriverWallet(driverData.driver.role === 'driver' ? 2500 : 0);
-        setConductorWallet(driverData.driver.role === 'conductor' ? 1800 : 0);
+        setDriverWallet(driverData.role === 'driver' ? 2500 : 0);
+        setConductorWallet(driverData.role === 'conductor' ? 1800 : 0);
       }
       
     } catch (err) {
       console.error('❌ Error loading wallet data:', err);
       // Fallback to mock data
       setMatatuWallet(15000);
-      setDriverWallet(driverData.driver.role === 'driver' ? 2500 : 0);
-      setConductorWallet(driverData.driver.role === 'conductor' ? 1800 : 0);
+      setDriverWallet(driverData.role === 'driver' ? 2500 : 0);
+      setConductorWallet(driverData.role === 'conductor' ? 1800 : 0);
     }
   };
 
@@ -248,9 +248,9 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          driverId: driverData.driver.id,
-          role: driverData.driver.role,
-          matatuId: driverData.driver.matatu_id
+          driverId: driverData.id,
+          role: driverData.role,
+          matatuId: driverData.matatu_id
         })
       });
 
