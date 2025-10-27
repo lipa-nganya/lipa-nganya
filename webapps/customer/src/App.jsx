@@ -226,21 +226,34 @@ function App() {
 
   // Load payment history
   const loadPaymentHistory = async () => {
-    if (!customer) return;
+    if (!customer) {
+      console.log("❌ No customer found, cannot load payment history");
+      return [];
+    }
 
+    console.log(`🔍 Loading payment history for customer ID: ${customer.id}`);
     setLoading(true);
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/customers/${customer.id}/payments`);
+      console.log(`📡 Payment history response status: ${response.status}`);
+      
       const data = await response.json();
+      console.log(`📊 Payment history data:`, data);
 
       if (response.ok) {
         setPaymentHistory(data);
+        console.log(`✅ Loaded ${data.length} payment records`);
+        return data; // Return the data for immediate use
       } else {
+        console.error(`❌ Payment history API error:`, data);
         setError("Failed to load payment history");
+        return [];
       }
     } catch (err) {
-      console.error("Error loading payment history:", err);
+      console.error("❌ Error loading payment history:", err);
       setError("Failed to load payment history");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -311,33 +324,39 @@ function App() {
         setStep("waiting");
         
         // Try to find customer by phone after payment
-        if (!customer) {
-          await findCustomerByPhone(sanitizedPhone);
+        let actualCustomer = customer;
+        if (!actualCustomer) {
+          actualCustomer = await findCustomerByPhone(sanitizedPhone);
         }
         
         // Set up a timeout to check payment status after 30 seconds
         setTimeout(async () => {
           try {
             // Check if payment was actually successful by looking for payment record
-            if (customer) {
-              await loadPaymentHistory();
-              // If we have payment history, payment was successful
-              if (paymentHistory.length > 0) {
+            if (actualCustomer) {
+              console.log("🔍 Checking payment status after timeout...");
+              const paymentData = await loadPaymentHistory();
+              
+              console.log(`📊 Payment history length: ${paymentData.length}`);
+              if (paymentData.length > 0) {
+                console.log("✅ Payment successful, redirecting to name capture");
                 if (!isAuthenticated) {
                   setStep("nameCapture");
                 } else {
                   setStep("profile");
                 }
               } else {
+                console.log("❌ No payment history found, payment may have failed");
                 setError("Payment may not have been completed. Please check your phone and try again.");
                 setStep("payment");
               }
             } else {
+              console.log("❌ No customer found, payment may have failed");
               setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
               setStep("payment");
             }
           } catch (err) {
-            console.error("Error checking payment status:", err);
+            console.error("❌ Error checking payment status:", err);
             setError("Payment status could not be verified. Please check your payment history.");
             setStep("payment");
           }
