@@ -32,6 +32,20 @@ export const sendDriverOTP = async (req, res) => {
       timestamp: Date.now()
     };
     
+    // BYPASS SMS API FOR NOW - Just return success
+    console.log(`✅ Driver OTP generated (SMS bypassed): ${otp} for matatu ${matatuNumber}`);
+    console.log(`📱 OTP for testing: ${otp}`);
+    
+    res.json({ 
+      success: true,
+      message: "OTP generated successfully (SMS bypassed for testing)",
+      otp: otp, // Include OTP in response for testing
+      messageId: "test-" + Date.now(),
+      networkId: "test"
+    });
+
+    // TODO: Uncomment below when Advanta SMS API is configured
+    /*
     // Send OTP via Advanta SMS API
     const message = `Your Lipa Nganya driver verification code is: ${otp}. Valid for 5 minutes.`;
     
@@ -79,6 +93,7 @@ export const sendDriverOTP = async (req, res) => {
         error: "Invalid response from SMS service"
       });
     }
+    */
 
   } catch (error) {
     console.error(`❌ Error sending driver OTP via Advanta API:`, error);

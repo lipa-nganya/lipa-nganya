@@ -238,6 +238,10 @@ function App() {
       if (otpResponse.ok) {
         setOtpSent(true);
         console.log(`✅ OTP sent for matatu ${matatuNumber}`);
+        // For testing: show OTP in console
+        if (data.otp) {
+          console.log(`🔑 TESTING OTP: ${data.otp}`);
+        }
       } else {
         const errorData = await otpResponse.json();
         setError(errorData.message || "Failed to send verification code");
