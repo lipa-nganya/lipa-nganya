@@ -10,6 +10,7 @@ const { Pool } = pkg;
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 import ratingRoutes from "./routes/ratingRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
 
@@ -143,6 +144,9 @@ app.use("/api/ratings", ratingRoutes(pool));
 
 // ✅ Customer routes
 app.use("/api/customers", customerRoutes);
+
+// ✅ Auth routes
+app.use("/api/auth", authRoutes);
 
 // ✅ Start server
 const PORT = process.env.PORT || 7070;

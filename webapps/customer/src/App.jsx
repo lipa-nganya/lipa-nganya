@@ -76,10 +76,16 @@ function App() {
   // Payment details state
   const [selectedPayment, setSelectedPayment] = useState(null);
   
-  // Authentication state - phone-based
+  // Authentication state - OTP-based
   const [customer, setCustomer] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // OTP state
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [loginPhone, setLoginPhone] = useState("");
   
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -188,15 +194,6 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Logout function
-  const handleLogout = () => {
-    setCustomer(null);
-    setIsAuthenticated(false);
-    setPaymentHistory([]);
-    localStorage.removeItem('lipaNganyaCustomer');
-    setStep("home");
   };
 
   // Find or create customer by phone
@@ -456,6 +453,131 @@ function App() {
     }
   };
 
+  // ✅ OTP Functions using Advanta SMS API
+  const sendOTP = async (phoneNumber) => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log(`🔍 Generated OTP: ${otp} for phone: ${phoneNumber}`);
+      
+      // Store OTP temporarily (in production, this should be stored securely on backend)
+      sessionStorage.setItem('otpCode', otp);
+      sessionStorage.setItem('otpPhone', phoneNumber);
+      
+      // Send OTP via Advanta SMS API
+      const message = `Your Lipa Nganya verification code is: ${otp}. Valid for 5 minutes.`;
+      
+      const response = await fetch(`${BACKEND_URL}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: phoneNumber,
+          message: message,
+          otp: otp
+        }),
+      });
+
+      const data = await response.json();
+      console.log(`📡 OTP send response:`, data);
+
+      if (response.ok) {
+        setOtpSent(true);
+        setLoginPhone(phoneNumber);
+        console.log(`✅ OTP sent successfully to ${phoneNumber}`);
+      } else {
+        console.error(`❌ OTP send failed:`, data);
+        setError(data.message || "Failed to send OTP. Please try again.");
+      }
+    } catch (err) {
+      console.error("❌ Error sending OTP:", err);
+      setError("Failed to send OTP. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOTP = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const storedOtp = sessionStorage.getItem('otpCode');
+      const storedPhone = sessionStorage.getItem('otpPhone');
+      
+      console.log(`🔍 Verifying OTP: ${otpCode} against stored: ${storedOtp}`);
+      
+      if (otpCode === storedOtp && loginPhone === storedPhone) {
+        // OTP is valid, now find or create customer
+        const customerData = await findOrCreateCustomer(loginPhone);
+        
+        if (customerData) {
+          setOtpVerified(true);
+          saveCustomerAndAuthenticate(customerData);
+          setStep("home");
+          
+          // Clear OTP data
+          sessionStorage.removeItem('otpCode');
+          sessionStorage.removeItem('otpPhone');
+          setOtpSent(false);
+          setOtpCode("");
+          setLoginPhone("");
+          
+          console.log(`✅ OTP verified successfully for ${loginPhone}`);
+        } else {
+          setError("Failed to create account. Please try again.");
+        }
+      } else {
+        setError("Invalid OTP. Please check and try again.");
+        console.log(`❌ OTP verification failed`);
+      }
+    } catch (err) {
+      console.error("❌ Error verifying OTP:", err);
+      setError("Failed to verify OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const findOrCreateCustomer = async (phoneNumber) => {
+    try {
+      console.log(`🔍 Finding or creating customer for phone: ${phoneNumber}`);
+      
+      const response = await fetch(`${BACKEND_URL}/api/customers/create-or-find`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: phoneNumber,
+          name: `Customer ${phoneNumber}` // Default name, can be updated later
+        }),
+      });
+
+      const data = await response.json();
+      console.log(`📊 Customer response:`, data);
+
+      if (response.ok) {
+        return data.customer;
+      } else {
+        console.error(`❌ Customer creation failed:`, data);
+        return null;
+      }
+    } catch (err) {
+      console.error("❌ Error finding/creating customer:", err);
+      return null;
+    }
+  };
+
   // ✅ Handle payment selection
   const handlePaymentClick = (payment) => {
     console.log(`🔍 Payment clicked:`, payment);
@@ -479,6 +601,22 @@ function App() {
       // If neither has created_at, sort by ID (higher ID = newer)
       return b.id - a.id;
     });
+  };
+
+  // ✅ Handle logout
+  const handleLogout = () => {
+    setCustomer(null);
+    setIsAuthenticated(false);
+    setPaymentHistory([]);
+    setOtpSent(false);
+    setOtpCode("");
+    setOtpVerified(false);
+    setLoginPhone("");
+    localStorage.removeItem('lipaNganyaCustomer');
+    sessionStorage.removeItem('otpCode');
+    sessionStorage.removeItem('otpPhone');
+    setStep("login");
+    console.log("✅ User logged out successfully");
   };
 
   // ✅ Handle profile editing
@@ -715,42 +853,57 @@ function App() {
               Rate Matatu
             </div>
 
-            <div
-              onClick={() => handleMenuClick(isAuthenticated ? "history" : "home")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              Payments
-            </div>
+            {isAuthenticated ? (
+              <>
+                <div
+                  onClick={() => handleMenuClick("history")}
+                  style={{
+                    padding: "var(--spacing-sm)",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    fontWeight: "500"
+                  }}
+                >
+                  Payments
+                </div>
 
-            <div
-              onClick={() => handleMenuClick("profile")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              My Profile
-            </div>
+                <div
+                  onClick={() => handleMenuClick("profile")}
+                  style={{
+                    padding: "var(--spacing-sm)",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    fontWeight: "500"
+                  }}
+                >
+                  My Profile
+                </div>
 
-            {isAuthenticated && (
+                <div
+                  onClick={handleLogout}
+                  style={{
+                    padding: "var(--spacing-sm)",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    fontWeight: "500",
+                    color: "var(--accent-salmon)"
+                  }}
+                >
+                  Logout
+                </div>
+              </>
+            ) : (
               <div
-                onClick={handleLogout}
+                onClick={() => handleMenuClick("login")}
                 style={{
                   padding: "var(--spacing-sm)",
                   cursor: "pointer",
                   fontSize: "1.1rem",
                   fontWeight: "500",
-                  color: "var(--accent-salmon)"
+                  color: "var(--accent-orange)"
                 }}
               >
-                Logout
+                Login
               </div>
             )}
           </div>
@@ -1155,130 +1308,172 @@ function App() {
     </div>
   );
 
-  const renderLogin = () => {
-    const handleGoogleClick = () => {
-      console.log("🔍 Google Sign-In button clicked");
+  const renderLogin = () => (
+    <div className="card">
+      <div className="text-center mb-4">
+        <h2>Welcome to Lipa Nganya</h2>
+        <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
+          Enter your phone number to receive a verification code
+        </p>
+      </div>
       
-      if (window.google && window.google.accounts) {
-        try {
-          // Clear any existing prompts first
-          window.google.accounts.id.cancel();
+      {!otpSent ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+          <div className="form-group">
+            <label className="form-label">Phone Number</label>
+            <input
+              type="tel"
+              className="form-input"
+              value={loginPhone}
+              onChange={(e) => setLoginPhone(e.target.value)}
+              placeholder="2547XXXXXXXX"
+              disabled={loading}
+              style={{ fontSize: "1.1rem", padding: "var(--spacing-md)", minHeight: "56px" }}
+            />
+          </div>
           
-          // Use renderButton for more reliable popup
-          const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "777996667711-e61l268f50fhsiih0jgjd2ltjmapfst2.apps.googleusercontent.com";
+          <div style={{ 
+            backgroundColor: "#e8f4fd", 
+            padding: "var(--spacing-sm)", 
+            borderRadius: "var(--radius-sm)",
+            marginBottom: "var(--spacing-md)",
+            fontSize: "0.9rem"
+          }}>
+            💡 We'll send you a 6-digit verification code via SMS
+          </div>
           
-          // Create a temporary button element for Google Sign-In
-          const tempDiv = document.createElement('div');
-          tempDiv.style.display = 'none';
-          document.body.appendChild(tempDiv);
-          
-          window.google.accounts.id.renderButton(tempDiv, {
-            theme: 'outline',
-            size: 'large',
-            type: 'standard',
-            shape: 'rectangular',
-            text: 'signin_with',
-            width: 300
-          });
-          
-          // Trigger click on the rendered button
-          setTimeout(() => {
-            const googleButton = tempDiv.querySelector('div[role="button"]');
-            if (googleButton) {
-              googleButton.click();
-            } else {
-              // Fallback to prompt if button rendering fails
-              window.google.accounts.id.prompt();
-            }
-            document.body.removeChild(tempDiv);
-          }, 100);
-          
-        } catch (error) {
-          console.error("❌ Error with Google Sign-In:", error);
-          // Fallback to prompt
-          window.google.accounts.id.prompt();
-        }
-      } else {
-        console.error("❌ Google Sign-In not available");
-        setError("Google Sign-In is not available. Please refresh the page and try again.");
-      }
-    };
-
-    return (
-      <div className="card">
-        <div className="text-center mb-3">
-          <button 
-            className="btn btn-outline" 
-            onClick={() => setStep("home")} 
-            disabled={loading}
-            style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
-          >
-            <BackIcon />
-            Back
-          </button>
-        </div>
-        
-        <h2 className="text-center mb-4">Login with Google</h2>
-        
-        <div style={{ textAlign: "center", marginBottom: "var(--spacing-md)" }}>
-          <p style={{ color: "var(--gray-medium)", marginBottom: "var(--spacing-md)" }}>
-            Sign in to view your payment history and manage your account
-          </p>
+          {error && (
+            <div style={{ 
+              color: "var(--accent-salmon)", 
+              backgroundColor: "#ffe6e6", 
+              padding: "var(--spacing-sm)", 
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.9rem",
+              border: "1px solid #ffcccc",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--spacing-xs)"
+            }}>
+              <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              {error}
+            </div>
+          )}
           
           <button 
             className="btn btn-primary" 
-            onClick={handleGoogleClick}
-            disabled={loading}
-            style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              gap: "var(--spacing-xs)",
-              backgroundColor: "#4285f4",
-              border: "none"
-            }}
+            onClick={() => sendOTP(loginPhone)}
+            disabled={loading || !loginPhone.trim() || loginPhone.length < 10}
+            style={{ fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
           >
             {loading ? (
               <>
-                <div style={{
-                  width: "20px",
-                  height: "20px",
-                  border: "2px solid #ffffff",
-                  borderTop: "2px solid transparent",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite"
-                }}></div>
-                Signing in...
+                <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                  <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                </svg>
+                Sending Code...
               </>
             ) : (
               <>
-                <svg className="icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285f4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34a853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fbbc05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#ea4335"/>
+                <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                 </svg>
-                Sign in with Google
+                Send Verification Code
               </>
             )}
           </button>
         </div>
-        
-        
-        {error && (
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+          <div className="form-group">
+            <label className="form-label">Verification Code</label>
+            <input
+              type="text"
+              className="form-input"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
+              disabled={loading}
+              style={{ fontSize: "1.5rem", padding: "var(--spacing-md)", minHeight: "56px", textAlign: "center", letterSpacing: "0.5rem" }}
+            />
+          </div>
+          
           <div style={{ 
-            color: "var(--accent-salmon)", 
-            backgroundColor: "#ffe6e6", 
+            backgroundColor: "#e8f5e8", 
             padding: "var(--spacing-sm)", 
             borderRadius: "var(--radius-sm)",
-            marginBottom: "var(--spacing-md)"
+            marginBottom: "var(--spacing-md)",
+            fontSize: "0.9rem",
+            textAlign: "center"
           }}>
-            {error}
+            ✅ Verification code sent to {loginPhone}
           </div>
-        )}
-      </div>
-    );
-  };
+          
+          {error && (
+            <div style={{ 
+              color: "var(--accent-salmon)", 
+              backgroundColor: "#ffe6e6", 
+              padding: "var(--spacing-sm)", 
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.9rem",
+              border: "1px solid #ffcccc",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--spacing-xs)"
+            }}>
+              <svg className="icon" viewBox="0 0 24 24" fill="currentColor" style={{ width: "20px", height: "20px" }}>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              {error}
+            </div>
+          )}
+          
+          <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
+            <button 
+              className="btn btn-primary" 
+              onClick={verifyOTP}
+              disabled={loading || otpCode.length !== 6}
+              style={{ flex: 1, fontSize: "1.1rem", fontWeight: "600", minHeight: "60px" }}
+            >
+              {loading ? (
+                <>
+                  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                  </svg>
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 12l2 2 4-4"/>
+                    <circle cx="12" cy="12" r="10"/>
+                  </svg>
+                  Verify Code
+                </>
+              )}
+            </button>
+            
+            <button 
+              className="btn btn-outline" 
+              onClick={() => {
+                setOtpSent(false);
+                setOtpCode("");
+                setError("");
+              }}
+              disabled={loading}
+              style={{ flex: 1, fontSize: "1rem", minHeight: "60px" }}
+            >
+              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   const renderPaymentHistory = () => (
     <div className="card">
