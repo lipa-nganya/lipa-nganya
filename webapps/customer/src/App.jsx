@@ -77,18 +77,39 @@ function App() {
     // Make handleGoogleSignIn globally available
     window.handleGoogleSignIn = handleGoogleSignIn;
     
-    // Initialize Google Identity Services when component mounts
-    if (window.google) {
-      // Use Vite's import.meta.env instead of process.env
-      const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id";
-      
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleSignIn,
-        auto_select: false,
-        cancel_on_tap_outside: true
-      });
-    }
+    // Wait for Google script to load
+    const initGoogleSignIn = () => {
+      if (window.google && window.google.accounts) {
+        // Use Vite's import.meta.env instead of process.env
+        const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "777996667711-e61l268f50fhsiih0jgjd2ltjmapfst2.apps.googleusercontent.com";
+        
+        console.log("🔍 Debug - Google Client ID:", GOOGLE_CLIENT_ID);
+        console.log("🔍 Debug - import.meta.env:", import.meta.env);
+        
+        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === "your-google-client-id") {
+          console.error("❌ Google Client ID is missing or not loaded properly");
+          return;
+        }
+        
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleSignIn,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            use_fedcm_for_prompt: false // Disable FedCM to avoid the error
+          });
+          console.log("✅ Google Sign-In initialized successfully");
+        } catch (error) {
+          console.error("Error initializing Google Sign-In:", error);
+        }
+      } else {
+        // Retry after a short delay
+        setTimeout(initGoogleSignIn, 100);
+      }
+    };
+    
+    initGoogleSignIn();
   }, []);
 
   const handlePayFareClick = () => {
