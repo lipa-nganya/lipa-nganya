@@ -29,6 +29,20 @@ app.use(
   })
 );
 
+// Additional CORS headers for all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 
 // ✅ PostgreSQL
@@ -47,6 +61,7 @@ pool
 
 // ✅ Default route
 app.get("/", (req, res) => {
+  console.log("✅ Health check requested");
   res.send("Lipa Nganya Backend is running 🚀");
 });
 
@@ -64,6 +79,8 @@ app.get("/customers", async (req, res) => {
 // ✅ Matatu info route
 app.get("/matatus/:id", async (req, res) => {
   const matatuId = req.params.id;
+  console.log(`🔍 Fetching matatu with ID: ${matatuId}`);
+  
   try {
     const query = `
       SELECT m.id AS matatu_number, m.route_name, s.name AS sacco_name
@@ -74,13 +91,15 @@ app.get("/matatus/:id", async (req, res) => {
     const result = await pool.query(query, [matatuId]);
 
     if (!result.rows.length) {
+      console.log(`❌ Matatu not found: ${matatuId}`);
       return res.status(404).json({ error: "Matatu not found" });
     }
 
+    console.log(`✅ Matatu found: ${JSON.stringify(result.rows[0])}`);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error fetching matatu");
+    console.error(`❌ Error fetching matatu ${matatuId}:`, error);
+    res.status(500).json({ error: "Error fetching matatu" });
   }
 });
 
