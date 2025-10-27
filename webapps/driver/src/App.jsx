@@ -425,96 +425,21 @@ function App() {
     setDriver(null);
     setMatatu(null);
     setIsAuthenticated(false);
-    setCurrentTrip(null);
-    setIsTripActive(false);
     setPayments([]);
     setEarnings({ today: 0, week: 0, month: 0 });
     setRatings({ average: 0, count: 0, recent: [] });
+    setMatatuWallet(0);
+    setDriverWallet(0);
+    setConductorWallet(0);
+    setRecentTransactions([]);
+    setPaymentNotifications([]);
+    setOtpSent(false);
+    setOtpCode("");
+    setDriverPin("");
+    setNeedsPinSetup(false);
     localStorage.removeItem('lipaNganyaDriver');
     setStep("login");
-    console.log("✅ Driver logged out");
-  };
-
-  // Start trip
-  const startTrip = async () => {
-    if (!selectedRoute) {
-      setError("Please select a route");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/trips/start`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matatuId: driver.matatu_id,
-          route: selectedRoute,
-          driverId: driver.id
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setCurrentTrip(data.trip);
-        setIsTripActive(true);
-        console.log(`✅ Trip started: ${selectedRoute}`);
-      } else {
-        setError(data.message || "Failed to start trip");
-      }
-    } catch (err) {
-      console.error("❌ Error starting trip:", err);
-      setError("Failed to start trip. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // End trip
-  const endTrip = async () => {
-    if (!currentTrip) {
-      setError("No active trip to end");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/trips/${currentTrip.id}/end`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tripCount: 1 // This would be calculated based on actual passengers
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setCurrentTrip(null);
-        setIsTripActive(false);
-        setSelectedRoute("");
-        console.log(`✅ Trip ended successfully`);
-        
-        // Reload earnings
-        await loadEarnings(driver.matatu_id);
-      } else {
-        setError(data.message || "Failed to end trip");
-      }
-    } catch (err) {
-      console.error("❌ Error ending trip:", err);
-      setError("Failed to end trip. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    console.log("✅ Driver logged out successfully");
   };
 
   // Toggle menu
