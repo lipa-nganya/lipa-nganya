@@ -480,6 +480,269 @@ app.post("/api/wallet/matatu/:matatuId/credit", async (req, res) => {
   }
 });
 
+// ✅ Direct wallet crediting for successful payments
+app.post("/api/test/credit-wallet/:paymentId", async (req, res) => {
+  const { paymentId } = req.params;
+  
+  try {
+    console.log(`🧪 Crediting wallet for payment ${paymentId}...`);
+    
+    // Get the successful payment
+    const paymentResult = await pool.query(
+      'SELECT * FROM payments WHERE id = $1 AND status = $2',
+      [paymentId, 'success']
+    );
+    
+    if (paymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Successful payment not found' });
+    }
+    
+    const payment = paymentResult.rows[0];
+    
+    // Credit to matatu wallet
+    const walletResult = await creditPaymentToMatatuWallet({
+      matatuId: payment.matatu_id,
+      amount: parseFloat(payment.amount),
+      phone: payment.phone,
+      mpesaTransactionId: payment.mpesa_transaction_id
+    });
+    
+    if (walletResult.success) {
+      console.log(`✅ Payment credited to matatu wallet: ${walletResult.newBalance}`);
+      res.json({
+        success: true,
+        message: 'Payment credited to wallet successfully',
+        payment: payment,
+        walletBalance: walletResult.newBalance
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to credit payment to wallet',
+        details: walletResult.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error crediting wallet:', error);
+    res.status(500).json({ error: 'Error crediting wallet', details: error.message });
+  }
+});
+
+// ✅ Direct payment update test
+app.post("/api/test/direct-update/:paymentId", async (req, res) => {
+  const { paymentId } = req.params;
+  
+  try {
+    console.log(`🧪 Direct update for payment ${paymentId}...`);
+    
+    // Direct SQL update
+    const result = await pool.query(
+      `UPDATE payments 
+       SET status = 'success', 
+           mpesa_transaction_id = $1 
+       WHERE id = $2 AND status = 'pending' 
+       RETURNING *`,
+      [`DIRECT${Date.now()}`, paymentId]
+    );
+    
+    if (result.rows.length > 0) {
+      console.log(`✅ Payment ${paymentId} updated successfully`);
+      res.json({
+        success: true,
+        message: 'Payment updated successfully',
+        payment: result.rows[0]
+      });
+    } else {
+      res.status(404).json({ error: 'Payment not found or not pending' });
+    }
+  } catch (error) {
+    console.error('❌ Error in direct update:', error);
+    res.status(500).json({ error: 'Error updating payment', details: error.message });
+  }
+});
+
+// ✅ Simple payment status update test
+app.post("/api/test/update-payment-status/:paymentId", async (req, res) => {
+  const { paymentId } = req.params;
+  
+  try {
+    console.log(`🧪 Updating payment ${paymentId} status to success...`);
+    
+    // Get the payment
+    const paymentResult = await pool.query(
+      'SELECT * FROM payments WHERE id = $1 AND status = $2',
+      [paymentId, 'pending']
+    );
+    
+    if (paymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pending payment not found' });
+    }
+    
+    const payment = paymentResult.rows[0];
+    const mpesaTransactionId = `TEST${Date.now()}`;
+    
+    // Update payment to success
+    const updateResult = await pool.query(
+      'UPDATE payments SET status=$1, payment_time=NOW(), mpesa_transaction_id=$2 WHERE id=$3 RETURNING *',
+      ['success', mpesaTransactionId, paymentId]
+    );
+    
+    if (updateResult.rows.length > 0) {
+      console.log(`✅ Payment ${paymentId} updated to success`);
+      res.json({
+        success: true,
+        message: 'Payment status updated to success',
+        payment: updateResult.rows[0]
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update payment status' });
+    }
+  } catch (error) {
+    console.error('❌ Error updating payment status:', error);
+    res.status(500).json({ error: 'Error updating payment status' });
+  }
+});
+
+// ✅ Test M-Pesa callback simulation
+app.post("/api/test/simulate-callback", async (req, res) => {
+  try {
+    console.log('🧪 Simulating M-Pesa callback...');
+    
+    // Simulate a successful callback for matatu 6
+    const mockCallbackData = {
+      Body: {
+        stkCallback: {
+          ResultCode: 0, // 0 = success
+          CallbackMetadata: {
+            Item: [
+              { Name: "Amount", Value: 1.00 },
+              { Name: "PhoneNumber", Value: "254727893741" },
+              { Name: "MpesaReceiptNumber", Value: `SIM${Date.now()}` }
+            ]
+          }
+        }
+      }
+    };
+    
+    // Process the callback
+    const items = mockCallbackData.Body.stkCallback.CallbackMetadata.Item;
+    const resultCode = mockCallbackData.Body.stkCallback.ResultCode;
+    const amount = items.find((i) => i.Name === "Amount")?.Value;
+    const phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
+    const mpesaTransactionId = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
+    
+    console.log(`📱 Simulated callback: Phone: ${phone}, Amount: ${amount}, Result: ${resultCode}`);
+    
+    if (resultCode === 0) {
+      // Payment successful - update payment status
+      const updateResult = await pool.query(
+        "UPDATE payments SET status='success', payment_time=NOW(), mpesa_transaction_id=$3 WHERE phone=$1 AND amount=$2 AND status='pending' RETURNING *",
+        [phone, amount, mpesaTransactionId]
+      );
+      
+      if (updateResult.rows.length > 0) {
+        const payment = updateResult.rows[0];
+        console.log(`✅ Payment updated to success: ${payment.id}`);
+        
+        // Automatically credit payment to matatu wallet
+        console.log(`💰 Auto-crediting payment to matatu wallet...`);
+        const walletResult = await creditPaymentToMatatuWallet({
+          matatuId: payment.matatu_id,
+          amount: parseFloat(amount),
+          phone: phone,
+          mpesaTransactionId: mpesaTransactionId
+        });
+        
+        if (walletResult.success) {
+          console.log(`✅ Payment automatically credited to matatu wallet: ${walletResult.newBalance}`);
+          res.json({
+            success: true,
+            message: 'Callback simulated successfully',
+            payment: payment,
+            walletBalance: walletResult.newBalance
+          });
+        } else {
+          console.error(`❌ Failed to credit payment to wallet: ${walletResult.error}`);
+          res.status(500).json({
+            success: false,
+            error: 'Failed to credit payment to wallet',
+            details: walletResult.error
+          });
+        }
+      } else {
+        console.log('⚠️ No pending payment found to update');
+        res.status(404).json({ error: 'No pending payment found' });
+      }
+    } else {
+      res.status(400).json({ error: 'Simulated callback failed' });
+    }
+  } catch (error) {
+    console.error('❌ Error simulating callback:', error);
+    res.status(500).json({ error: 'Error simulating callback' });
+  }
+});
+
+// ✅ Manual payment completion endpoint (for testing)
+app.post("/api/test/complete-payment/:paymentId", async (req, res) => {
+  const { paymentId } = req.params;
+  
+  try {
+    console.log(`🧪 Manually completing payment ${paymentId} for testing...`);
+    
+    // Get the payment
+    const paymentResult = await pool.query(
+      'SELECT * FROM payments WHERE id = $1 AND status = $2',
+      [paymentId, 'pending']
+    );
+    
+    if (paymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pending payment not found' });
+    }
+    
+    const payment = paymentResult.rows[0];
+    const mpesaTransactionId = `TEST${Date.now()}`;
+    
+    // Update payment to success
+    const updateResult = await pool.query(
+      'UPDATE payments SET status=$1, payment_time=NOW(), mpesa_transaction_id=$2 WHERE id=$3 RETURNING *',
+      ['success', mpesaTransactionId, paymentId]
+    );
+    
+    if (updateResult.rows.length > 0) {
+      console.log(`✅ Payment ${paymentId} updated to success`);
+      
+      // Credit to matatu wallet
+      const walletResult = await creditPaymentToMatatuWallet({
+        matatuId: payment.matatu_id,
+        amount: parseFloat(payment.amount),
+        phone: payment.phone,
+        mpesaTransactionId: mpesaTransactionId
+      });
+      
+      if (walletResult.success) {
+        console.log(`✅ Payment credited to matatu wallet: ${walletResult.newBalance}`);
+        res.json({
+          success: true,
+          message: 'Payment completed and credited to wallet',
+          payment: updateResult.rows[0],
+          walletBalance: walletResult.newBalance
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to credit payment to wallet',
+          details: walletResult.error
+        });
+      }
+    } else {
+      res.status(500).json({ error: 'Failed to update payment status' });
+    }
+  } catch (error) {
+    console.error('❌ Error completing payment:', error);
+    res.status(500).json({ error: 'Error completing payment' });
+  }
+});
+
 // ✅ Recalculate wallet balances endpoint
 app.post("/api/wallet/recalculate", async (req, res) => {
   try {

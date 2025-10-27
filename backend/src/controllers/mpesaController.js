@@ -181,7 +181,7 @@ export const mpesaCallback = async (req, res) => {
     if (resultCode === 0) {
       // Payment successful - update payment status
       const updateResult = await pool.query(
-        "UPDATE payments SET status='success', payment_time=NOW(), mpesa_transaction_id=$3 WHERE phone=$1 AND amount=$2 AND status='pending' RETURNING *",
+        "UPDATE payments SET status='success', mpesa_transaction_id=$3 WHERE phone=$1 AND amount=$2 AND status='pending' RETURNING *",
         [phone, amount, mpesaTransactionId]
       );
 
