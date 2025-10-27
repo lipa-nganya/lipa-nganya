@@ -192,6 +192,18 @@ function App() {
     try {
       console.log('🔍 Loading wallet data for:', driverData);
       
+      // Load matatu wallet balance from LP wallet API
+      const matatuResponse = await fetch(`${BACKEND_URL}/api/wallet/matatu/${driverData.matatu_id}/balance`);
+      if (matatuResponse.ok) {
+        const matatuData = await matatuResponse.json();
+        console.log('✅ LP Matatu wallet data loaded:', matatuData);
+        setMatatuWallet(matatuData.balance || 0);
+      } else {
+        console.error('❌ Failed to load LP matatu wallet data');
+        setMatatuWallet(15000); // Fallback
+      }
+      
+      // Load driver/conductor wallet data based on role
       const response = await fetch(`${BACKEND_URL}/api/wallet/balances`, {
         method: 'POST',
         headers: {
@@ -206,10 +218,7 @@ function App() {
 
       if (response.ok) {
         const walletData = await response.json();
-        console.log('✅ Wallet data loaded:', walletData);
-        
-        // Set wallet balances based on role
-        setMatatuWallet(walletData.wallets.matatuWallet || 0);
+        console.log('✅ Driver/Conductor wallet data loaded:', walletData);
         
         if (driverData.role === 'driver') {
           setDriverWallet(walletData.wallets.driverWallet || 0);
@@ -218,17 +227,15 @@ function App() {
           setConductorWallet(walletData.wallets.conductorWallet || 0);
           setDriverWallet(0); // Conductor doesn't see driver wallet
         }
-        
-        // Load recent transactions
-        await loadWalletTransactions(driverData);
-        
       } else {
-        console.error('❌ Failed to load wallet data');
+        console.error('❌ Failed to load driver/conductor wallet data');
         // Fallback to mock data
-        setMatatuWallet(15000);
         setDriverWallet(driverData.role === 'driver' ? 2500 : 0);
         setConductorWallet(driverData.role === 'conductor' ? 1800 : 0);
       }
+      
+      // Load recent transactions
+      await loadWalletTransactions(driverData);
       
     } catch (err) {
       console.error('❌ Error loading wallet data:', err);
@@ -242,6 +249,21 @@ function App() {
   // Load wallet transactions from backend
   const loadWalletTransactions = async (driverData) => {
     try {
+      // Load LP matatu wallet transactions
+      const matatuTransactionsResponse = await fetch(`${BACKEND_URL}/api/wallet/matatu/${driverData.matatu_id}/transactions?limit=5`);
+      let lpTransactions = [];
+      
+      if (matatuTransactionsResponse.ok) {
+        const matatuData = await matatuTransactionsResponse.json();
+        console.log('✅ LP Matatu wallet transactions loaded:', matatuData);
+        lpTransactions = matatuData.transactions.map(t => ({
+          ...t,
+          wallet_name: 'LP Matatu Wallet',
+          wallet_type: 'matatu'
+        }));
+      }
+      
+      // Load driver/conductor wallet transactions
       const response = await fetch(`${BACKEND_URL}/api/wallet/transactions`, {
         method: 'POST',
         headers: {
@@ -254,32 +276,21 @@ function App() {
         })
       });
 
+      let otherTransactions = [];
       if (response.ok) {
         const transactionData = await response.json();
-        console.log('✅ Wallet transactions loaded:', transactionData);
-        setRecentTransactions(transactionData.transactions || []);
+        console.log('✅ Driver/Conductor wallet transactions loaded:', transactionData);
+        otherTransactions = transactionData.transactions || [];
       } else {
-        console.error('❌ Failed to load wallet transactions');
-        // Fallback to mock data
-        setRecentTransactions([
-          {
-            id: 1,
-            wallet_name: 'Matatu Wallet',
-            transaction_type: 'payment_received',
-            amount: 50,
-            description: 'Customer fare payment',
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: 2,
-            wallet_name: 'Matatu Wallet',
-            transaction_type: 'fuel_payment',
-            amount: -2000,
-            description: 'Fuel payment',
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-          }
-        ]);
+        console.error('❌ Failed to load driver/conductor wallet transactions');
       }
+      
+      // Combine LP transactions with other wallet transactions
+      const allTransactions = [...lpTransactions, ...otherTransactions]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10); // Show latest 10 transactions
+      
+      setRecentTransactions(allTransactions);
       
     } catch (err) {
       console.error('❌ Error loading wallet transactions:', err);
@@ -287,11 +298,19 @@ function App() {
       setRecentTransactions([
         {
           id: 1,
-          wallet_name: 'Matatu Wallet',
+          wallet_name: 'LP Matatu Wallet',
           transaction_type: 'payment_received',
           amount: 50,
           description: 'Customer fare payment',
           created_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          wallet_name: 'LP Matatu Wallet',
+          transaction_type: 'fuel_payment',
+          amount: -2000,
+          description: 'Fuel payment',
+          created_at: new Date(Date.now() - 3600000).toISOString(),
         }
       ]);
     }
@@ -875,9 +894,9 @@ function App() {
             gridTemplateColumns: driver?.role === 'driver' ? "1fr 1fr" : "1fr 1fr", 
             gap: "var(--spacing-md)" 
           }}>
-            {/* Matatu Wallet - Always visible */}
+            {/* LP Matatu Wallet - Always visible */}
             <div style={{ textAlign: "center", padding: "var(--spacing-md)", backgroundColor: "#e3f2fd", borderRadius: "var(--radius-sm)" }}>
-              <h4 style={{ margin: 0, color: "var(--accent-blue)" }}>Matatu Wallet</h4>
+              <h4 style={{ margin: 0, color: "var(--accent-blue)" }}>LP Matatu Wallet</h4>
               <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "1.5rem", fontWeight: "600" }}>{matatuWallet} KES</p>
             </div>
             
