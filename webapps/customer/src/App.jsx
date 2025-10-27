@@ -329,34 +329,74 @@ function App() {
           actualCustomer = await findCustomerByPhone(sanitizedPhone);
         }
         
-        // Set up a timeout to check payment status after 30 seconds
+        // Check if customer already exists and has a name, then redirect accordingly
+        setTimeout(() => {
+          console.log("🔄 Checking customer status after STK Push initiation");
+          
+          if (actualCustomer) {
+            console.log(`📊 Customer found: ${JSON.stringify(actualCustomer)}`);
+            
+            // Check if customer already has a name (existing customer)
+            if (actualCustomer.name && actualCustomer.name.trim() !== '') {
+              console.log("✅ Existing customer with name found, redirecting to payments");
+              // Save customer data and authenticate
+              saveCustomerAndAuthenticate(actualCustomer);
+              setStep("payments");
+            } else {
+              console.log("🆕 New customer or customer without name, redirecting to name capture");
+              if (!isAuthenticated) {
+                setStep("nameCapture");
+              } else {
+                setStep("profile");
+              }
+            }
+          } else {
+            console.log("❌ No customer found, redirecting to name capture");
+            if (!isAuthenticated) {
+              setStep("nameCapture");
+            } else {
+              setStep("profile");
+            }
+          }
+        }, 5000); // Wait 5 seconds for STK Push to be processed
+        
+        // Keep the original timeout as backup
         setTimeout(async () => {
           try {
-            // Check if payment was actually successful by looking for payment record
+            // Backup check: Verify payment was successful and redirect accordingly
             if (actualCustomer) {
-              console.log("🔍 Checking payment status after timeout...");
+              console.log("🔍 Backup check: Verifying payment and customer status...");
               const paymentData = await loadPaymentHistory();
               
-              console.log(`📊 Payment history length: ${paymentData.length}`);
+              console.log(`📊 Backup check: Payment history length: ${paymentData.length}`);
               if (paymentData.length > 0) {
-                console.log("✅ Payment successful, redirecting to name capture");
-                if (!isAuthenticated) {
-                  setStep("nameCapture");
+                console.log("✅ Backup check: Payment successful");
+                
+                // Check if customer already has a name (existing customer)
+                if (actualCustomer.name && actualCustomer.name.trim() !== '') {
+                  console.log("✅ Backup check: Existing customer with name, redirecting to payments");
+                  saveCustomerAndAuthenticate(actualCustomer);
+                  setStep("payments");
                 } else {
-                  setStep("profile");
+                  console.log("🆕 Backup check: New customer, redirecting to name capture");
+                  if (!isAuthenticated) {
+                    setStep("nameCapture");
+                  } else {
+                    setStep("profile");
+                  }
                 }
               } else {
-                console.log("❌ No payment history found, payment may have failed");
+                console.log("❌ Backup check: No payment history found");
                 setError("Payment may not have been completed. Please check your phone and try again.");
                 setStep("payment");
               }
             } else {
-              console.log("❌ No customer found, payment may have failed");
+              console.log("❌ Backup check: No customer found");
               setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
               setStep("payment");
             }
           } catch (err) {
-            console.error("❌ Error checking payment status:", err);
+            console.error("❌ Backup check error:", err);
             setError("Payment status could not be verified. Please check your payment history.");
             setStep("payment");
           }
@@ -1254,6 +1294,38 @@ function App() {
               Create Account
             </>
           )}
+        </button>
+        
+        <button 
+          className="btn btn-outline" 
+          onClick={async () => {
+            console.log("🔍 Manual payment status check");
+            if (customer) {
+              const paymentData = await loadPaymentHistory();
+              console.log(`📊 Manual check: Payment history length: ${paymentData.length}`);
+              if (paymentData.length > 0) {
+                console.log("✅ Manual check: Payment found!");
+                setError(""); // Clear any errors
+              } else {
+                console.log("❌ Manual check: No payment found");
+                setError("No payment found. Please complete your payment first.");
+              }
+            } else {
+              setError("No customer found. Please try making a payment first.");
+            }
+          }}
+          style={{
+            fontSize: "1rem",
+            fontWeight: "500",
+            minHeight: "50px",
+            marginTop: "var(--spacing-xs)"
+          }}
+        >
+          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 12l2 2 4-4"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          Check Payment Status
         </button>
       </div>
     </div>
