@@ -1,0 +1,20 @@
+{
+  "name": "lipa-nganya",
+  "version": "1.0.0",
+  "description": "Lipa Nganya - Customer and Driver Mobile Apps",
+  "scripts": {
+    "dev:customer": "cd webapps/customer && npm run dev",
+    "dev:driver": "cd webapps/driver && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:customer\" \"npm run dev:driver\"",
+    "install:all": "cd webapps/customer && npm install && cd ../driver && npm install && cd ../../backend && npm install",
+    "build:customer": "cd webapps/customer && npm run build",
+    "build:driver": "cd webapps/driver && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["matatu", "payment", "mobile", "react", "node"],
+  "author": "Lipa Nganya Team",
+  "license": "MIT"
+}

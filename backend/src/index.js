@@ -11,6 +11,7 @@ import mpesaRoutes from "./routes/mpesaRoutes.js";
 import ratingRoutes from "./routes/ratingRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import driverRoutes from "./routes/driverRoutes.js";
 
 const app = express();
 
@@ -147,6 +148,185 @@ app.use("/api/customers", customerRoutes);
 
 // ✅ Auth routes
 app.use("/api/auth", authRoutes);
+
+// ✅ Driver routes
+app.use("/api/auth", driverRoutes);
+
+// ✅ Matatu search endpoint for driver login
+app.get("/api/matatus/search", async (req, res) => {
+  const { number } = req.query;
+  
+  console.log(`🔍 Searching for matatu with number: ${number}`);
+  
+  if (!number) {
+    return res.status(400).json({ error: "Matatu number is required" });
+  }
+  
+  try {
+    // For now, return mock data - in production this would query the database
+    const mockMatatu = {
+      id: 1,
+      number: number.toUpperCase(),
+      route_name: "Route 1",
+      sacco_name: "Sacco A",
+      plate_number: number.toUpperCase(),
+      routes: ["Route 1", "Route 2", "Route 3"]
+    };
+    
+    console.log(`✅ Matatu found:`, mockMatatu);
+    res.json(mockMatatu);
+    
+  } catch (error) {
+    console.error(`❌ Error searching matatu:`, error);
+    res.status(500).json({ error: "Error searching matatu" });
+  }
+});
+
+// ✅ Matatu payments endpoint
+app.get("/api/matatus/:id/payments", async (req, res) => {
+  const { id } = req.params;
+  
+  console.log(`🔍 Fetching payments for matatu ID: ${id}`);
+  
+  try {
+    // Mock payments data - in production this would query the database
+    const mockPayments = [
+      {
+        id: 1,
+        amount: 50,
+        phone: "254708374153",
+        status: "success",
+        created_at: new Date().toISOString(),
+        customer_name: "John Doe"
+      },
+      {
+        id: 2,
+        amount: 30,
+        phone: "254712345678",
+        status: "success",
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        customer_name: "Jane Smith"
+      }
+    ];
+    
+    console.log(`✅ Found ${mockPayments.length} payments for matatu ${id}`);
+    res.json(mockPayments);
+    
+  } catch (error) {
+    console.error(`❌ Error fetching payments:`, error);
+    res.status(500).json({ error: "Error fetching payments" });
+  }
+});
+
+// ✅ Matatu earnings endpoint
+app.get("/api/matatus/:id/earnings", async (req, res) => {
+  const { id } = req.params;
+  
+  console.log(`🔍 Fetching earnings for matatu ID: ${id}`);
+  
+  try {
+    // Mock earnings data - in production this would calculate from database
+    const mockEarnings = {
+      today: 1500,
+      week: 8500,
+      month: 35000
+    };
+    
+    console.log(`✅ Earnings for matatu ${id}:`, mockEarnings);
+    res.json(mockEarnings);
+    
+  } catch (error) {
+    console.error(`❌ Error fetching earnings:`, error);
+    res.status(500).json({ error: "Error fetching earnings" });
+  }
+});
+
+// ✅ Matatu ratings endpoint
+app.get("/api/matatus/:id/ratings", async (req, res) => {
+  const { id } = req.params;
+  
+  console.log(`🔍 Fetching ratings for matatu ID: ${id}`);
+  
+  try {
+    // Mock ratings data - in production this would query the database
+    const mockRatings = {
+      average: 4.2,
+      count: 15,
+      recent: [
+        { rating: 5, comment: "Great service!", date: "2024-01-15" },
+        { rating: 4, comment: "Good driver", date: "2024-01-14" },
+        { rating: 5, comment: "Very clean", date: "2024-01-13" }
+      ]
+    };
+    
+    console.log(`✅ Ratings for matatu ${id}:`, mockRatings);
+    res.json(mockRatings);
+    
+  } catch (error) {
+    console.error(`❌ Error fetching ratings:`, error);
+    res.status(500).json({ error: "Error fetching ratings" });
+  }
+});
+
+// ✅ Trip management endpoints
+app.post("/api/trips/start", async (req, res) => {
+  const { matatuId, route, driverId } = req.body;
+  
+  console.log(`🔍 Starting trip for matatu ${matatuId} on route ${route}`);
+  
+  try {
+    // Mock trip data - in production this would create a trip record
+    const mockTrip = {
+      id: Math.floor(Math.random() * 1000),
+      matatu_id: matatuId,
+      driver_id: driverId,
+      route: route,
+      status: "active",
+      start_time: new Date().toISOString(),
+      trip_count: 0
+    };
+    
+    console.log(`✅ Trip started:`, mockTrip);
+    res.json({ 
+      success: true, 
+      message: "Trip started successfully",
+      trip: mockTrip 
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error starting trip:`, error);
+    res.status(500).json({ error: "Error starting trip" });
+  }
+});
+
+app.post("/api/trips/:id/end", async (req, res) => {
+  const { id } = req.params;
+  const { tripCount } = req.body;
+  
+  console.log(`🔍 Ending trip ${id} with ${tripCount} passengers`);
+  
+  try {
+    // Mock trip completion - in production this would update the trip record
+    const mockTrip = {
+      id: parseInt(id),
+      status: "completed",
+      end_time: new Date().toISOString(),
+      trip_count: tripCount || 1,
+      earnings: (tripCount || 1) * 50 // Mock calculation
+    };
+    
+    console.log(`✅ Trip ended:`, mockTrip);
+    res.json({ 
+      success: true, 
+      message: "Trip ended successfully",
+      trip: mockTrip 
+    });
+    
+  } catch (error) {
+    console.error(`❌ Error ending trip:`, error);
+    res.status(500).json({ error: "Error ending trip" });
+  }
+});
 
 // ✅ Start server
 const PORT = process.env.PORT || 7070;
