@@ -42,20 +42,21 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
   };
 
   try {
-    // Get access token
+    // Get access token with timeout
     const tokenResponse = await axios.get(
       "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
       {
         auth: {
           username: process.env.MPESA_CONSUMER_KEY,
           password: process.env.MPESA_CONSUMER_SECRET
-        }
+        },
+        timeout: 15000 // 15 seconds timeout for token request
       }
     );
 
     const accessToken = tokenResponse.data.access_token;
 
-    // Send STK Push
+    // Send STK Push with increased timeout
     const response = await axios.post(
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       stkPushRequest,
@@ -63,7 +64,8 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 30000 // 30 seconds timeout for STK Push request
       }
     );
 
@@ -77,11 +79,21 @@ export const lipaNaMpesaOnline = async (req, res, pool) => {
     
     if (customerResult.rows.length === 0) {
       // Create new customer with phone number
-      const newCustomerResult = await pool.query(
-        "INSERT INTO customers(phone, name, email) VALUES($1, $2, $3) RETURNING id",
-        [sanitizedPhone, `Customer ${sanitizedPhone}`, null]
-      );
-      actualCustomerId = newCustomerResult.rows[0].id;
+      try {
+        const newCustomerResult = await pool.query(
+          "INSERT INTO customers(phone, name, email) VALUES($1, $2, $3) RETURNING id",
+          [sanitizedPhone, `Customer ${sanitizedPhone}`, null]
+        );
+        actualCustomerId = newCustomerResult.rows[0].id;
+      } catch (insertError) {
+        console.error("❌ Error inserting customer:", insertError.message);
+        // Try without email column if it doesn't exist
+        const newCustomerResult = await pool.query(
+          "INSERT INTO customers(phone, name) VALUES($1, $2) RETURNING id",
+          [sanitizedPhone, `Customer ${sanitizedPhone}`]
+        );
+        actualCustomerId = newCustomerResult.rows[0].id;
+      }
     } else {
       actualCustomerId = customerResult.rows[0].id;
     }

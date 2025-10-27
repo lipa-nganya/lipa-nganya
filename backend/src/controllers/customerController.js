@@ -26,17 +26,21 @@ export const createOrFindCustomer = async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      // Customer exists, update name and email if provided
-      if (name || email) {
-        const updateQuery = `
-          UPDATE customers 
-          SET name = COALESCE($2, name), 
-              email = COALESCE($3, email),
-              updated_at = NOW()
-          WHERE phone = $1
-          RETURNING *
-        `;
-        result = await pool.query(updateQuery, [phone, name, email]);
+      // Customer exists, update name if provided (skip email for production compatibility)
+      if (name) {
+        try {
+          const updateQuery = `
+            UPDATE customers 
+            SET name = $2,
+                updated_at = NOW()
+            WHERE phone = $1
+            RETURNING *
+          `;
+          result = await pool.query(updateQuery, [phone, name]);
+        } catch (updateError) {
+          console.error("❌ Error updating customer:", updateError.message);
+          // If update fails, just return existing customer
+        }
       }
       return res.json({ 
         customer: result.rows[0], 
@@ -44,13 +48,24 @@ export const createOrFindCustomer = async (req, res) => {
         message: "Customer found and updated" 
       });
     } else {
-      // Create new customer
-      const insertQuery = `
-        INSERT INTO customers (phone, name, email) 
-        VALUES ($1, $2, $3) 
-        RETURNING *
-      `;
-      result = await pool.query(insertQuery, [phone, name || null, email || null]);
+      // Create new customer (without email for production compatibility)
+      try {
+        const insertQuery = `
+          INSERT INTO customers (phone, name) 
+          VALUES ($1, $2) 
+          RETURNING *
+        `;
+        result = await pool.query(insertQuery, [phone, name || `Customer ${phone}`]);
+      } catch (insertError) {
+        console.error("❌ Error inserting customer:", insertError.message);
+        // Try with email column if it exists
+        const insertQueryWithEmail = `
+          INSERT INTO customers (phone, name, email) 
+          VALUES ($1, $2, $3) 
+          RETURNING *
+        `;
+        result = await pool.query(insertQueryWithEmail, [phone, name || `Customer ${phone}`, email || null]);
+      }
       
       return res.status(201).json({ 
         customer: result.rows[0], 
@@ -107,12 +122,26 @@ export const verifyGoogleToken = async (req, res) => {
   }
 
   try {
-    // For now, we'll just return the token info
-    // In production, you'd verify this with Google's API
+    // Check if it's a mock token (for development)
+    if (token.startsWith("mock_credential_")) {
+      const userInfo = {
+        id: "google_" + Date.now(),
+        email: "user@gmail.com",
+        name: "Google User",
+        verified: true
+      };
+      return res.json({ user: userInfo });
+    }
+
+    // TODO: Implement real Google token verification
+    // You'll need to install: npm install google-auth-library
+    // Then verify the token with Google's API
+    
+    // For now, return mock data
     const userInfo = {
-      id: "google_" + Date.now(), // Temporary ID
-      email: "user@example.com", // This would come from Google
-      name: "Google User", // This would come from Google
+      id: "google_" + Date.now(),
+      email: "user@gmail.com", 
+      name: "Google User",
       verified: true
     };
 
