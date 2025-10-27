@@ -68,6 +68,11 @@ function App() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   
+  // Profile edit state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  
   // Authentication state - phone-based
   const [customer, setCustomer] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -443,6 +448,78 @@ function App() {
     } catch (err) {
       console.error("Failed to connect to server:", err);
       setError("Failed to connect to server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Handle profile editing
+  const handleEditProfile = () => {
+    if (customer && customer.name) {
+      // Split the existing name into first and last name
+      const nameParts = customer.name.split(' ');
+      setEditFirstName(nameParts[0] || '');
+      setEditLastName(nameParts.slice(1).join(' ') || '');
+    } else {
+      setEditFirstName('');
+      setEditLastName('');
+    }
+    setIsEditingProfile(true);
+    setError('');
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingProfile(false);
+    setEditFirstName('');
+    setEditLastName('');
+    setError('');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      setError('Please enter both first and last name');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const fullName = `${editFirstName.trim()} ${editLastName.trim()}`;
+      console.log(`🔍 Updating customer profile: ${customer.id} with name: ${fullName}`);
+
+      const response = await fetch(`${BACKEND_URL}/api/customers/${customer.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName,
+          phone: customer.phone
+        }),
+      });
+
+      const data = await response.json();
+      console.log(`📊 Profile update response:`, data);
+
+      if (response.ok) {
+        // Update local customer data
+        const updatedCustomer = { ...customer, name: fullName };
+        setCustomer(updatedCustomer);
+        saveCustomerAndAuthenticate(updatedCustomer);
+        
+        setIsEditingProfile(false);
+        setEditFirstName('');
+        setEditLastName('');
+        
+        console.log('✅ Profile updated successfully');
+      } else {
+        console.error(`❌ Profile update failed:`, data);
+        setError(data.message || 'Failed to update profile');
+      }
+    } catch (err) {
+      console.error('❌ Error updating profile:', err);
+      setError('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1403,17 +1480,92 @@ function App() {
       {isAuthenticated && customer ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
           <div className="card" style={{ backgroundColor: "var(--gray-light)" }}>
-            <h3 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-sm)" }}>
-              Personal Information
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
-              <div>
-                <strong>Name:</strong> {customer.name || "Not provided"}
-              </div>
-              <div>
-                <strong>Phone Number:</strong> {customer.phone}
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--spacing-sm)" }}>
+              <h3 style={{ color: "var(--accent-orange)", margin: 0 }}>
+                Personal Information
+              </h3>
+              {!isEditingProfile && (
+                <button 
+                  className="btn btn-outline" 
+                  onClick={handleEditProfile}
+                  style={{ 
+                    fontSize: "0.9rem", 
+                    padding: "var(--spacing-xs) var(--spacing-sm)",
+                    minHeight: "auto"
+                  }}
+                >
+                  ✏️ Edit
+                </button>
+              )}
             </div>
+            
+            {isEditingProfile ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+                <div className="form-group">
+                  <label className="form-label">First Name</label>
+                  <input 
+                    type="text" 
+                    value={editFirstName} 
+                    onChange={(e) => setEditFirstName(e.target.value)} 
+                    placeholder="Enter first name" 
+                    className="form-input" 
+                    disabled={loading}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Last Name</label>
+                  <input 
+                    type="text" 
+                    value={editLastName} 
+                    onChange={(e) => setEditLastName(e.target.value)} 
+                    placeholder="Enter last name" 
+                    className="form-input" 
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <strong>Phone Number:</strong> {customer.phone}
+                </div>
+                {error && (
+                  <div style={{ 
+                    color: "var(--accent-salmon)", 
+                    backgroundColor: "#ffe6e6", 
+                    padding: "var(--spacing-sm)", 
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "0.9rem"
+                  }}>
+                    {error}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: "var(--spacing-sm)" }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={handleSaveProfile}
+                    disabled={loading || !editFirstName.trim() || !editLastName.trim()}
+                    style={{ flex: 1 }}
+                  >
+                    {loading ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={handleCancelEdit}
+                    disabled={loading}
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+                <div>
+                  <strong>Name:</strong> {customer.name || "Not provided"}
+                </div>
+                <div>
+                  <strong>Phone Number:</strong> {customer.phone}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="card" style={{ backgroundColor: "var(--gray-light)" }}>

@@ -197,3 +197,51 @@ export const verifyGoogleToken = async (req, res) => {
     res.status(500).json({ error: "Failed to verify Google token" });
   }
 };
+
+// ✅ Update customer profile
+export const updateCustomer = async (req, res) => {
+  const { customerId } = req.params;
+  const { name, phone } = req.body;
+
+  console.log(`🔍 Updating customer ${customerId} with name: ${name}, phone: ${phone}`);
+
+  if (!customerId) {
+    return res.status(400).json({ error: "Customer ID is required" });
+  }
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "Name is required" });
+  }
+
+  try {
+    // Update customer name
+    const updateQuery = `
+      UPDATE customers 
+      SET name = $1 
+      WHERE id = $2 
+      RETURNING *
+    `;
+    
+    console.log(`📊 Executing update query for customer ${customerId}`);
+    const result = await pool.query(updateQuery, [name.trim(), customerId]);
+    
+    if (result.rows.length === 0) {
+      console.log(`❌ Customer not found: ${customerId}`);
+      return res.status(404).json({ error: "Customer not found" });
+    }
+    
+    console.log(`✅ Customer updated successfully: ${JSON.stringify(result.rows[0])}`);
+    res.json({ 
+      customer: result.rows[0], 
+      message: "Customer profile updated successfully" 
+    });
+  } catch (err) {
+    console.error(`❌ Error updating customer ${customerId}:`, err);
+    console.error(`❌ Error details:`, err.message);
+    res.status(500).json({ 
+      error: "Failed to update customer profile",
+      details: err.message,
+      customerId: customerId
+    });
+  }
+};

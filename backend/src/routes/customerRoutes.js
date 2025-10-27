@@ -3,7 +3,8 @@ import {
   getCustomers, 
   createOrFindCustomer, 
   getCustomerPayments, 
-  verifyGoogleToken 
+  verifyGoogleToken,
+  updateCustomer
 } from "../controllers/customerController.js";
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.post("/create-or-find", createOrFindCustomer);
 
 // Get customer payment history
 router.get("/:customerId/payments", getCustomerPayments);
+
+// Update customer profile
+router.put("/:customerId", updateCustomer);
 
 // Verify Google authentication token
 router.post("/auth/google", verifyGoogleToken);
