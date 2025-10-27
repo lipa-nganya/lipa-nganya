@@ -64,52 +64,34 @@ function App() {
   const [rating, setRating] = useState("");
   const [comment, setComment] = useState("");
   
-  // Authentication state
-  const [user, setUser] = useState(null);
+  // Name capture state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  
+  // Authentication state - phone-based
   const [customer, setCustomer] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Initialize Google Sign-In
+  // Check if user is authenticated on app load
   useEffect(() => {
-    // Make handleGoogleSignIn globally available
-    window.handleGoogleSignIn = handleGoogleSignIn;
-    
-    // Wait for Google script to load
-    const initGoogleSignIn = () => {
-      if (window.google && window.google.accounts) {
-        // Use Vite's import.meta.env instead of process.env
-        const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "777996667711-e61l268f50fhsiih0jgjd2ltjmapfst2.apps.googleusercontent.com";
-        
-        console.log("🔍 Debug - Google Client ID:", GOOGLE_CLIENT_ID);
-        console.log("🔍 Debug - import.meta.env:", import.meta.env);
-        
-        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === "your-google-client-id") {
-          console.error("❌ Google Client ID is missing or not loaded properly");
-          return;
-        }
-        
-        try {
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleSignIn,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-            use_fedcm_for_prompt: false // Disable FedCM to avoid the error
-          });
-          console.log("✅ Google Sign-In initialized successfully");
-        } catch (error) {
-          console.error("Error initializing Google Sign-In:", error);
-        }
-      } else {
-        // Retry after a short delay
-        setTimeout(initGoogleSignIn, 100);
+    // Check if there's a customer in localStorage (phone-based auth)
+    const savedCustomer = localStorage.getItem('lipaNganyaCustomer');
+    if (savedCustomer) {
+      try {
+        const customerData = JSON.parse(savedCustomer);
+        setCustomer(customerData);
+        setIsAuthenticated(true);
+        // Load payment history if customer exists
+        loadPaymentHistory();
+      } catch (error) {
+        console.error('Error parsing saved customer:', error);
+        localStorage.removeItem('lipaNganyaCustomer');
       }
-    };
-    
-    initGoogleSignIn();
+    }
   }, []);
 
   const handlePayFareClick = () => {
@@ -162,64 +144,67 @@ function App() {
     }
   };
 
-  // Google Sign-In handler
-  const handleGoogleSignIn = async (response) => {
+  // Save customer to localStorage and set authentication
+  const saveCustomerAndAuthenticate = (customerData) => {
+    setCustomer(customerData);
+    setIsAuthenticated(true);
+    localStorage.setItem('lipaNganyaCustomer', JSON.stringify(customerData));
+  };
+
+  // Handle name capture after successful payment
+  const handleNameCapture = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Please enter both first and last name");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      // Verify token with backend
-      const verifyResponse = await fetch(`${BACKEND_URL}/api/customers/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: response.credential }),
-      });
-
-      const data = await verifyResponse.json();
-
-      if (verifyResponse.ok) {
-        setUser(data.user);
-        
-        // Try to find customer by phone number if available
-        if (phone) {
-          const foundCustomer = await findCustomerByPhone(phone, data.user.name, data.user.email);
-          // Load payment history if customer was found
-          if (foundCustomer) {
-            loadPaymentHistory();
-          }
-        }
-        
-        // Redirect to profile page after successful sign-in
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      const customerData = await findCustomerByPhone(phone, fullName);
+      
+      if (customerData) {
         setStep("profile");
       } else {
-        setError("Login failed. Please try again.");
+        setError("Failed to create account. Please try again.");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Login failed. Please try again.");
+      console.error("Error creating account:", err);
+      setError("Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Logout function
+  const handleLogout = () => {
+    setCustomer(null);
+    setIsAuthenticated(false);
+    setPaymentHistory([]);
+    localStorage.removeItem('lipaNganyaCustomer');
+    setStep("home");
+  };
+
   // Find or create customer by phone
-  const findCustomerByPhone = async (phoneNumber, name, email) => {
+  const findCustomerByPhone = async (phoneNumber, name = null) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/customers/create-or-find`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           phone: phoneNumber, 
-          name: name || null, 
-          email: email || null 
+          name: name || null
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setCustomer(data.customer);
-        return data.customer;
+        const customerData = data.customer;
+        saveCustomerAndAuthenticate(customerData);
+        return customerData;
       }
     } catch (err) {
       console.error("Error finding customer:", err);
@@ -320,10 +305,13 @@ function App() {
         // Set up a timeout to check payment status after 30 seconds
         setTimeout(async () => {
           try {
-            // For now, we'll show a message asking user to check their phone
-            // In a real implementation, you'd poll the backend for payment status
-            setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
-            setStep("payment");
+            // After successful payment, redirect to name capture if not authenticated
+            if (!isAuthenticated) {
+              setStep("nameCapture");
+            } else {
+              setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
+              setStep("payment");
+            }
           } catch (err) {
             console.error("Error checking payment status:", err);
             setError("Payment status could not be verified. Please check your payment history.");
@@ -480,7 +468,7 @@ function App() {
             </div>
 
             <div
-              onClick={() => handleMenuClick(user ? "history" : "login")}
+              onClick={() => handleMenuClick(isAuthenticated ? "history" : "home")}
               style={{
                 padding: "var(--spacing-sm)",
                 cursor: "pointer",
@@ -503,7 +491,7 @@ function App() {
               My Profile
             </div>
 
-            {user && (
+            {isAuthenticated && (
               <div
                 onClick={handleLogout}
                 style={{
@@ -1109,6 +1097,73 @@ function App() {
     </div>
   );
 
+  const renderNameCapture = () => (
+    <div className="card">
+      <div className="text-center mb-4">
+        <h2>Create Your Account</h2>
+        <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
+          Payment successful! Please enter your details to create your account.
+        </p>
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+        <div>
+          <label style={{ display: "block", marginBottom: "var(--spacing-xs)", fontWeight: "500" }}>
+            First Name
+          </label>
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="Enter your first name"
+            className="input"
+            disabled={loading}
+          />
+        </div>
+        
+        <div>
+          <label style={{ display: "block", marginBottom: "var(--spacing-xs)", fontWeight: "500" }}>
+            Last Name
+          </label>
+          <input
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Enter your last name"
+            className="input"
+            disabled={loading}
+          />
+        </div>
+        
+        <div style={{ backgroundColor: "var(--gray-light)", padding: "var(--spacing-sm)", borderRadius: "var(--radius-sm)" }}>
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--gray-medium)" }}>
+            <strong>Phone Number:</strong> {phone}
+          </p>
+        </div>
+        
+        {error && (
+          <div style={{ 
+            color: "var(--accent-salmon)", 
+            backgroundColor: "#ffe6e6", 
+            padding: "var(--spacing-sm)", 
+            borderRadius: "var(--radius-sm)",
+            fontSize: "0.9rem"
+          }}>
+            {error}
+          </div>
+        )}
+        
+        <button 
+          className="btn btn-primary" 
+          onClick={handleNameCapture}
+          disabled={loading || !firstName.trim() || !lastName.trim()}
+        >
+          {loading ? "Creating Account..." : "Create Account"}
+        </button>
+      </div>
+    </div>
+  );
+
   const renderProfile = () => (
     <div className="card">
       <div className="text-center mb-3">
@@ -1125,7 +1180,7 @@ function App() {
       
       <h2 className="text-center mb-4">My Profile</h2>
       
-      {user ? (
+      {isAuthenticated && customer ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
           <div className="card" style={{ backgroundColor: "var(--gray-light)" }}>
             <h3 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-sm)" }}>
@@ -1133,16 +1188,11 @@ function App() {
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
               <div>
-                <strong>Name:</strong> {user.name || customer?.name || "Not provided"}
+                <strong>Name:</strong> {customer.name || "Not provided"}
               </div>
               <div>
-                <strong>Email:</strong> {user.email || "Not provided"}
+                <strong>Phone Number:</strong> {customer.phone}
               </div>
-              {customer && (
-                <div>
-                  <strong>Phone Number:</strong> {customer.phone}
-                </div>
-              )}
             </div>
           </div>
           
@@ -1154,23 +1204,26 @@ function App() {
               ✓ Account verified and active
             </p>
           </div>
+          
+          <button 
+            className="btn btn-outline" 
+            onClick={handleLogout}
+            style={{ alignSelf: "center" }}
+          >
+            Logout
+          </button>
         </div>
       ) : (
         <div style={{ textAlign: "center", padding: "var(--spacing-lg)" }}>
           <p style={{ color: "var(--gray-medium)", marginBottom: "var(--spacing-md)" }}>
-            Please sign in to view your profile
+            Please make a payment to create your account
           </p>
           <button 
             className="btn btn-primary" 
-            onClick={() => setStep("login")} 
+            onClick={() => setStep("home")} 
             disabled={loading}
           >
-            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-              <polyline points="10,17 15,12 10,7"/>
-              <line x1="15" y1="12" x2="3" y2="12"/>
-            </svg>
-            Sign In with Google
+            Go to Payment
           </button>
         </div>
       )}
@@ -1190,6 +1243,7 @@ function App() {
       {step === "confirmation" && renderConfirmation()}
       {step === "rate" && renderRateMatatu()}
       {step === "login" && renderLogin()}
+      {step === "nameCapture" && renderNameCapture()}
       {step === "history" && renderPaymentHistory()}
       {step === "profile" && renderProfile()}
     </div>
