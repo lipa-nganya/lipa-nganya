@@ -1281,9 +1281,9 @@ function App() {
         </div>
       ) : (
         <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(2, 1fr)", 
-          gap: "var(--spacing-sm)",
+          display: "flex", 
+          flexDirection: "column", 
+          gap: "var(--spacing-xs)",
           maxHeight: "70vh",
           overflowY: "auto"
         }}>
@@ -1294,42 +1294,40 @@ function App() {
               style={{ 
                 backgroundColor: payment.status === 'success' ? "#e8f5e8" : "#ffe6e6",
                 padding: "var(--spacing-sm)",
-                minHeight: "80px",
+                minHeight: "60px",
                 display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between"
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                width: "100%"
               }}
             >
-              <div>
-                <p style={{ margin: 0, fontWeight: "600", fontSize: "1rem" }}>
-                  {payment.amount} KES
-                </p>
-                <p style={{ margin: "var(--spacing-xs) 0", fontSize: "0.85rem", color: "var(--gray-medium)", lineHeight: "1.2" }}>
-                  {payment.route_name}
-                </p>
-                <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--gray-medium)" }}>
-                  {payment.sacco_name}
-                </p>
-              </div>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                marginTop: "var(--spacing-xs)"
-              }}>
-                <p style={{ margin: 0, fontSize: "0.7rem", color: "var(--gray-medium)" }}>
-                  {payment.created_at ? new Date(payment.created_at).toLocaleDateString() : 'Recent'}
-                </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", flex: 1 }}>
                 <div style={{ 
-                  padding: "2px 6px", 
+                  padding: "4px 8px", 
                   borderRadius: "var(--radius-sm)",
                   backgroundColor: payment.status === 'success' ? "var(--accent-orange)" : "var(--accent-salmon)",
                   color: "white",
-                  fontSize: "0.7rem",
-                  fontWeight: "600"
+                  fontSize: "0.8rem",
+                  fontWeight: "600",
+                  minWidth: "30px",
+                  textAlign: "center"
                 }}>
                   {payment.status === 'success' ? '✓' : '✗'}
                 </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: "600", fontSize: "1.1rem" }}>
+                    {payment.amount} KES
+                  </p>
+                  <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--gray-medium)" }}>
+                    {payment.route_name} - {payment.sacco_name}
+                  </p>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--gray-medium)" }}>
+                  {payment.created_at ? new Date(payment.created_at).toLocaleDateString() : 'Recent'}
+                </p>
               </div>
             </div>
           ))}
