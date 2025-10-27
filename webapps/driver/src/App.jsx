@@ -1103,7 +1103,9 @@ function App() {
             boxShadow: "var(--shadow-lg)",
             display: "flex",
             flexDirection: "column",
-            gap: "var(--spacing-md)"
+            gap: "var(--spacing-md)",
+            overflowY: "auto",
+            maxHeight: "100vh"
           }}>
             <div
               onClick={() => handleMenuClick("dashboard")}
@@ -1154,18 +1156,6 @@ function App() {
             </div>
 
             <div
-              onClick={() => handleMenuClick("passengers")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              Passengers
-            </div>
-
-            <div
               onClick={() => handleMenuClick("reports")}
               style={{
                 padding: "var(--spacing-sm)",
@@ -1175,18 +1165,6 @@ function App() {
               }}
             >
               Report Issues
-            </div>
-
-            <div
-              onClick={() => handleMenuClick("performance")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              Performance
             </div>
 
             <div
@@ -1426,7 +1404,9 @@ function App() {
             boxShadow: "var(--shadow-lg)",
             display: "flex",
             flexDirection: "column",
-            gap: "var(--spacing-md)"
+            gap: "var(--spacing-md)",
+            overflowY: "auto",
+            maxHeight: "100vh"
           }}>
             <div
               onClick={() => handleMenuClick("dashboard")}
@@ -1477,18 +1457,6 @@ function App() {
             </div>
 
             <div
-              onClick={() => handleMenuClick("passengers")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              Passengers
-            </div>
-
-            <div
               onClick={() => handleMenuClick("reports")}
               style={{
                 padding: "var(--spacing-sm)",
@@ -1498,18 +1466,6 @@ function App() {
               }}
             >
               Reports
-            </div>
-
-            <div
-              onClick={() => handleMenuClick("performance")}
-              style={{
-                padding: "var(--spacing-sm)",
-                cursor: "pointer",
-                fontSize: "1.1rem",
-                fontWeight: "500"
-              }}
-            >
-              Performance
             </div>
 
             <div

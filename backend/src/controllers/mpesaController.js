@@ -2,6 +2,7 @@
 import axios from "axios";
 import moment from "moment";
 import dotenv from "dotenv";
+import { creditPaymentToMatatuWallet } from "../services/walletService.js";
 
 dotenv.config();
 
@@ -172,23 +173,51 @@ export const mpesaCallback = async (req, res) => {
 
   const amount = items.find((i) => i.Name === "Amount")?.Value;
   const phone = items.find((i) => i.Name === "PhoneNumber")?.Value;
+  const mpesaTransactionId = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value;
+
+  console.log(`📱 STK Callback received: Phone: ${phone}, Amount: ${amount}, Result: ${resultCode}`);
 
   try {
     if (resultCode === 0) {
-      await pool.query(
-        "UPDATE payments SET status='success', payment_time=NOW() WHERE phone=$1 AND amount=$2 AND status='pending'",
-        [phone, amount]
+      // Payment successful - update payment status
+      const updateResult = await pool.query(
+        "UPDATE payments SET status='success', payment_time=NOW(), mpesa_transaction_id=$3 WHERE phone=$1 AND amount=$2 AND status='pending' RETURNING *",
+        [phone, amount, mpesaTransactionId]
       );
+
+      if (updateResult.rows.length > 0) {
+        const payment = updateResult.rows[0];
+        console.log(`✅ Payment updated to success: ${payment.id}`);
+
+        // Automatically credit payment to matatu wallet
+        console.log(`💰 Auto-crediting payment to matatu wallet...`);
+        const walletResult = await creditPaymentToMatatuWallet({
+          matatuId: payment.matatu_id,
+          amount: parseFloat(amount),
+          phone: phone,
+          mpesaTransactionId: mpesaTransactionId
+        });
+
+        if (walletResult.success) {
+          console.log(`✅ Payment automatically credited to matatu wallet: ${walletResult.newBalance}`);
+        } else {
+          console.error(`❌ Failed to credit payment to wallet: ${walletResult.error}`);
+        }
+      } else {
+        console.log('⚠️ No pending payment found to update');
+      }
     } else {
+      // Payment failed - update status
       await pool.query(
         "UPDATE payments SET status='failed' WHERE phone=$1 AND amount=$2 AND status='pending'",
         [phone, amount]
       );
+      console.log(`❌ Payment failed for phone: ${phone}, amount: ${amount}`);
     }
 
     res.status(200).send("Callback received");
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error processing STK callback:', err);
     res.status(500).send("Error processing callback");
   }
 };

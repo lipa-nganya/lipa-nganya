@@ -195,12 +195,12 @@ pool
           ON CONFLICT (phone) DO NOTHING
         `);
         
-        // Create wallets
-        const matatus = await pool.query('SELECT id FROM matatus');
-        for (const matatu of matatus.rows) {
+        // Create wallets for ALL matatus (including any added later)
+        const allMatatus = await pool.query('SELECT id FROM matatus');
+        for (const matatu of allMatatus.rows) {
           await pool.query(
             'INSERT INTO matatu_wallets (matatu_id, balance) VALUES ($1, $2) ON CONFLICT (matatu_id) DO NOTHING',
-            [matatu.id, Math.floor(Math.random() * 20000) + 5000]
+            [matatu.id, 0] // Start with 0 balance, will be recalculated
           );
         }
         
@@ -379,6 +379,12 @@ app.get("/api/wallet/matatu/:matatuId/balance", async (req, res) => {
   const { matatuId } = req.params;
   
   try {
+    // Ensure wallet exists for this matatu
+    await pool.query(
+      'INSERT INTO matatu_wallets (matatu_id, balance) VALUES ($1, $2) ON CONFLICT (matatu_id) DO NOTHING',
+      [matatuId, 0]
+    );
+    
     const result = await pool.query(
       'SELECT balance FROM matatu_wallets WHERE matatu_id = $1',
       [matatuId]
