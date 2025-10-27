@@ -95,7 +95,7 @@ function App() {
   const [matatu, setMatatu] = useState(null);
   
   // UI state
-  const [step, setStep] = useState("login");
+  const [step, setStep] = useState("login"); // login, dashboard, transactions
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -1118,6 +1118,18 @@ function App() {
             </div>
 
             <div
+              onClick={() => handleMenuClick("transactions")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              All Transactions
+            </div>
+
+            <div
               onClick={() => handleMenuClick("payments")}
               style={{
                 padding: "var(--spacing-sm)",
@@ -1231,12 +1243,339 @@ function App() {
     </div>
   );
 
+  // ✅ Render All Transactions Page
+  const renderTransactions = () => (
+    <div>
+      {/* Header with Hamburger Menu and Driver Info */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "var(--white)",
+        padding: "var(--spacing-md)",
+        boxShadow: "var(--shadow-sm)",
+        zIndex: 1000,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
+        <button
+          onClick={toggleMenu}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "var(--spacing-xs)",
+            borderRadius: "var(--radius-sm)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+        </button>
+        
+        {/* Driver Info */}
+        {driver && (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            textAlign: "right"
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--spacing-xs)",
+              marginBottom: "var(--spacing-xs)"
+            }}>
+              <BusIcon />
+              <p style={{ 
+                margin: 0, 
+                fontSize: "1rem", 
+                fontWeight: "600",
+                color: "var(--accent-blue)"
+              }}>
+                {driver.name}
+              </p>
+            </div>
+            <p style={{ 
+              margin: 0, 
+              fontSize: "0.85rem", 
+              color: "var(--gray-medium)",
+              backgroundColor: "#e3f2fd",
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--accent-blue)"
+            }}>
+              🚐 {driver.matatu_number}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div style={{ marginTop: "80px", padding: "var(--spacing-md)" }}>
+        <div className="card">
+          <div className="text-center mb-3">
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setStep("dashboard")} 
+              disabled={loading}
+              style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
+            >
+              <BackIcon />
+              Back to Dashboard
+            </button>
+          </div>
+          
+          <h2 className="text-center mb-4">All Transactions</h2>
+          
+          {/* Transactions List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+            {payments.length === 0 ? (
+              <div style={{ 
+                textAlign: "center", 
+                padding: "var(--spacing-lg)",
+                color: "var(--gray-medium)"
+              }}>
+                No transactions found
+              </div>
+            ) : (
+              payments.map((transaction) => (
+                <div 
+                  key={transaction.id} 
+                  className="card" 
+                  style={{ 
+                    backgroundColor: "var(--gray-light)",
+                    borderLeft: `4px solid ${
+                      transaction.status === 'success' ? 'var(--accent-green)' :
+                      transaction.status === 'pending' ? 'var(--accent-orange)' :
+                      'var(--accent-salmon)'
+                    }`
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--spacing-xs)" }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "1rem" }}>
+                        Customer Payment
+                      </h4>
+                      <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
+                        Phone: {transaction.phone}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ margin: 0, fontSize: "1.1rem", fontWeight: "600" }}>
+                        {transaction.amount} KES
+                      </p>
+                      <span style={{ 
+                        fontSize: "0.8rem", 
+                        padding: "2px 8px", 
+                        borderRadius: "var(--radius-sm)",
+                        backgroundColor: 
+                          transaction.status === 'success' ? '#e8f5e8' :
+                          transaction.status === 'pending' ? '#fff3e0' :
+                          '#ffebee',
+                        color: 
+                          transaction.status === 'success' ? 'var(--accent-green)' :
+                          transaction.status === 'pending' ? 'var(--accent-orange)' :
+                          'var(--accent-salmon)'
+                      }}>
+                        {transaction.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", color: "var(--gray-medium)" }}>
+                    <div>
+                      {transaction.mpesa_transaction_id && (
+                        <div>M-Pesa ID: {transaction.mpesa_transaction_id}</div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div>{new Date(transaction.created_at).toLocaleDateString()}</div>
+                      <div>{new Date(transaction.created_at).toLocaleTimeString()}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Hamburger Menu */}
+      {isMenuOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          zIndex: 999,
+          display: "flex",
+          justifyContent: "flex-start"
+        }}>
+          <div style={{
+            backgroundColor: "var(--white)",
+            width: "80%",
+            maxWidth: "400px",
+            padding: "var(--spacing-lg)",
+            boxShadow: "var(--shadow-lg)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-md)"
+          }}>
+            <div
+              onClick={() => handleMenuClick("dashboard")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Dashboard
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("transactions")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              All Transactions
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("payments")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Payments
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("earnings")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Earnings
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("passengers")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Passengers
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("reports")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Reports
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("performance")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Performance
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("matatu-info")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Matatu Info
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("support")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Support
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("settings")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Settings
+            </div>
+
+            <div
+              onClick={handleLogout}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500",
+                color: "var(--accent-salmon)",
+                borderTop: "1px solid var(--border-color)",
+                marginTop: "var(--spacing-sm)",
+                paddingTop: "var(--spacing-md)"
+              }}
+            >
+              Logout
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // Main render
   return (
     <div className="App">
       {step === "login" && renderLogin()}
       {step === "pinSetup" && renderPinSetup()}
       {step === "dashboard" && renderDashboard()}
+      {step === "transactions" && renderTransactions()}
       
       {/* Add more step renders here for other screens */}
     </div>
