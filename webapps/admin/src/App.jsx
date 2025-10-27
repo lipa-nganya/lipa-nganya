@@ -92,6 +92,32 @@ function App() {
     }
   };
 
+  // Recalculate wallet balances
+  const recalculateWalletBalances = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${BACKEND_URL}/api/wallet/recalculate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        alert('Wallet balances recalculated successfully!');
+        loadDashboardData(); // Reload dashboard data
+      } else {
+        alert('Failed to recalculate wallet balances: ' + data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error recalculating wallet balances:', error);
+      alert('Failed to recalculate wallet balances');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load transactions data
   const loadTransactions = async () => {
     try {
@@ -311,9 +337,14 @@ function App() {
           <div className="dashboard">
             <div className="dashboard-header">
               <h2>Dashboard Overview</h2>
-              <button onClick={loadDashboardData} className="btn-secondary" disabled={loading}>
-                {loading ? '⏳ Loading...' : '🔄 Refresh Data'}
-              </button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={recalculateWalletBalances} className="btn-secondary" disabled={loading}>
+                  {loading ? '⏳ Recalculating...' : '💰 Recalculate Wallets'}
+                </button>
+                <button onClick={loadDashboardData} className="btn-secondary" disabled={loading}>
+                  {loading ? '⏳ Loading...' : '🔄 Refresh Data'}
+                </button>
+              </div>
             </div>
             
             {loading ? (
