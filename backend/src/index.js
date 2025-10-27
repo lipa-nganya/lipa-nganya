@@ -18,10 +18,14 @@ app.use(
   cors({
     origin: [
       "https://lipa-nganya.onrender.com", // live frontend
-      "http://localhost:5173"             // local frontend
+      "http://localhost:5173",            // local frontend
+      "http://127.0.0.1:5173"            // alternative local frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 200
   })
 );
 
