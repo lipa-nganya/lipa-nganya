@@ -12,6 +12,7 @@ import ratingRoutes from "./routes/ratingRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
+import walletRoutes from "./routes/walletRoutes.js";
 
 const app = express();
 
@@ -152,7 +153,10 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/auth", authRoutes);
 
 // ✅ Driver routes
-app.use("/api/auth", driverRoutes);
+app.use("/api/driver", driverRoutes);
+
+// ✅ Wallet routes
+app.use("/api/wallet", walletRoutes);
 
 // ✅ Matatu search endpoint for driver login
 app.get("/api/matatus/search", async (req, res) => {
