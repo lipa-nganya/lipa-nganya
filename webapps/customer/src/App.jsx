@@ -53,7 +53,7 @@ const CloseIcon = () => (
 );
 
 function App() {
-  const [step, setStep] = useState("home"); // home, matatuCheck, payment, confirmation, rate, history, login
+  const [step, setStep] = useState("home"); // home, matatuCheck, payment, waiting, confirmation, rate, history, login, profile
   const [matatuNumber, setMatatuNumber] = useState("");
   const [matatuDetails, setMatatuDetails] = useState(null);
   const [phone, setPhone] = useState("");
@@ -278,19 +278,28 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        const dateTime = new Date().toLocaleString();
-        setConfirmation({
-          matatuNumber: matatuDetails.matatu_number,
-          amount,
-          dateTime,
-        });
+        // STK Push initiated successfully - show waiting screen
+        setStep("waiting");
         
         // Try to find customer by phone after payment
         if (!customer) {
           await findCustomerByPhone(sanitizedPhone);
         }
         
-        setStep("confirmation");
+        // Set up a timeout to check payment status after 30 seconds
+        setTimeout(async () => {
+          try {
+            // For now, we'll show a message asking user to check their phone
+            // In a real implementation, you'd poll the backend for payment status
+            setError("Please check your phone for the M-Pesa prompt. If you don't see it, the payment may have timed out. Please try again.");
+            setStep("payment");
+          } catch (err) {
+            console.error("Error checking payment status:", err);
+            setError("Payment status could not be verified. Please check your payment history.");
+            setStep("payment");
+          }
+        }, 30000); // Wait 30 seconds before showing timeout message
+        
       } else {
         setError(data.message || "Failed to initiate payment");
         console.error("STK Push failed:", data);
@@ -601,6 +610,68 @@ function App() {
           disabled={loading}
         >
           {loading ? "Checking..." : "Confirm Matatu"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderWaiting = () => (
+    <div className="card">
+      <div className="text-center">
+        <div style={{ 
+          width: "80px", 
+          height: "80px", 
+          backgroundColor: "var(--accent-orange)", 
+          borderRadius: "50%", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          margin: "0 auto var(--spacing-md)",
+          color: "white",
+          animation: "pulse 2s infinite"
+        }}>
+          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        
+        <h2 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-md)" }}>
+          Processing Payment...
+        </h2>
+        
+        <div className="card" style={{ backgroundColor: "var(--gray-light)", marginBottom: "var(--spacing-md)" }}>
+          <p style={{ fontSize: "1.1rem", marginBottom: "var(--spacing-sm)" }}>
+            <strong>Amount:</strong> {amount} KES
+          </p>
+          <p style={{ color: "var(--gray-medium)", marginBottom: "var(--spacing-sm)" }}>
+            <strong>Matatu:</strong> {matatuDetails?.matatu_number}
+          </p>
+          <p style={{ color: "var(--gray-medium)", fontSize: "0.9rem" }}>
+            <strong>Phone:</strong> {phone}
+          </p>
+        </div>
+        
+        <div style={{ 
+          backgroundColor: "#e8f4fd", 
+          padding: "var(--spacing-md)", 
+          borderRadius: "var(--radius-sm)",
+          marginBottom: "var(--spacing-md)",
+          fontSize: "0.9rem"
+        }}>
+          <p style={{ margin: 0, fontWeight: "600", color: "var(--accent-orange)" }}>
+            📱 Check your phone for the M-Pesa prompt
+          </p>
+          <p style={{ margin: "var(--spacing-xs) 0 0 0", color: "var(--gray-medium)" }}>
+            Enter your M-Pesa PIN when prompted to complete the payment
+          </p>
+        </div>
+        
+        <button 
+          className="btn btn-outline" 
+          onClick={() => setStep("payment")}
+          style={{ color: "var(--accent-salmon)", borderColor: "var(--accent-salmon)" }}
+        >
+          Cancel Payment
         </button>
       </div>
     </div>
@@ -1051,6 +1122,7 @@ function App() {
       {step === "home" && renderHome()}
       {step === "matatuCheck" && renderMatatuCheck()}
       {step === "payment" && renderPayment()}
+      {step === "waiting" && renderWaiting()}
       {step === "confirmation" && renderConfirmation()}
       {step === "rate" && renderRateMatatu()}
       {step === "login" && renderLogin()}
