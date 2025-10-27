@@ -341,7 +341,7 @@ function App() {
               console.log("✅ Existing customer with name found, redirecting to payments");
               // Save customer data and authenticate
               saveCustomerAndAuthenticate(actualCustomer);
-              setStep("payments");
+              setStep("history");
             } else {
               console.log("🆕 New customer or customer without name, redirecting to name capture");
               if (!isAuthenticated) {
@@ -376,7 +376,7 @@ function App() {
                 if (actualCustomer.name && actualCustomer.name.trim() !== '') {
                   console.log("✅ Backup check: Existing customer with name, redirecting to payments");
                   saveCustomerAndAuthenticate(actualCustomer);
-                  setStep("payments");
+                  setStep("history");
                 } else {
                   console.log("🆕 Backup check: New customer, redirecting to name capture");
                   if (!isAuthenticated) {
