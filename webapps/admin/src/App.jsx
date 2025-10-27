@@ -51,6 +51,7 @@ function App() {
   // Load dashboard data
   const loadDashboardData = async () => {
     try {
+      console.log('🔄 Loading admin dashboard data...');
       const [statsRes, saccosRes, matatusRes, driversRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/admin/dashboard`),
         fetch(`${BACKEND_URL}/api/admin/saccos`),
@@ -58,12 +59,25 @@ function App() {
         fetch(`${BACKEND_URL}/api/admin/drivers`)
       ]);
 
-      setStats(await statsRes.json());
-      setSaccos(await saccosRes.json());
-      setMatatus(await matatusRes.json());
-      setDrivers(await driversRes.json());
+      const statsData = await statsRes.json();
+      const saccosData = await saccosRes.json();
+      const matatusData = await matatusRes.json();
+      const driversData = await driversRes.json();
+
+      console.log('✅ Dashboard data loaded:', {
+        stats: statsData,
+        saccos: saccosData.length,
+        matatus: matatusData.length,
+        drivers: driversData.length
+      });
+
+      setStats(statsData);
+      setSaccos(saccosData);
+      setMatatus(matatusData);
+      setDrivers(driversData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
+      alert('Failed to load dashboard data. Please check if the backend is running.');
     }
   };
 
@@ -225,31 +239,104 @@ function App() {
         {/* Dashboard */}
         {currentView === 'dashboard' && (
           <div className="dashboard">
-            <h2>Dashboard Overview</h2>
+            <div className="dashboard-header">
+              <h2>Dashboard Overview</h2>
+              <button onClick={loadDashboardData} className="btn-secondary">
+                🔄 Refresh Data
+              </button>
+            </div>
+            
             <div className="stats-grid">
               <div className="stat-card">
                 <h3>Saccos</h3>
                 <p className="stat-number">{stats.saccos || 0}</p>
+                <p className="stat-description">Transport companies</p>
               </div>
               <div className="stat-card">
                 <h3>Matatus</h3>
                 <p className="stat-number">{stats.matatus || 0}</p>
+                <p className="stat-description">Active routes</p>
               </div>
               <div className="stat-card">
                 <h3>Drivers</h3>
                 <p className="stat-number">{stats.drivers || 0}</p>
+                <p className="stat-description">Licensed drivers</p>
               </div>
               <div className="stat-card">
                 <h3>Conductors</h3>
                 <p className="stat-number">{stats.conductors || 0}</p>
+                <p className="stat-description">Fare collectors</p>
               </div>
               <div className="stat-card">
                 <h3>Customers</h3>
                 <p className="stat-number">{stats.customers || 0}</p>
+                <p className="stat-description">Registered users</p>
               </div>
               <div className="stat-card">
                 <h3>Payments</h3>
                 <p className="stat-number">{stats.completedPayments || 0}</p>
+                <p className="stat-description">Successful transactions</p>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="recent-activity">
+              <h3>Recent Activity</h3>
+              <div className="activity-grid">
+                <div className="activity-section">
+                  <h4>Latest Saccos</h4>
+                  <div className="activity-list">
+                    {saccos.slice(0, 3).map(sacco => (
+                      <div key={sacco.id} className="activity-item">
+                        <span className="activity-name">{sacco.name}</span>
+                        <span className="activity-date">
+                          {new Date(sacco.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    {saccos.length === 0 && (
+                      <p className="no-data">No saccos found</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="activity-section">
+                  <h4>Latest Matatus</h4>
+                  <div className="activity-list">
+                    {matatus.slice(0, 3).map(matatu => (
+                      <div key={matatu.id} className="activity-item">
+                        <span className="activity-name">{matatu.route_name}</span>
+                        <span className="activity-subtitle">{matatu.sacco_name}</span>
+                        <span className="activity-date">
+                          {new Date(matatu.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    {matatus.length === 0 && (
+                      <p className="no-data">No matatus found</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="activity-section">
+                  <h4>Latest Drivers & Conductors</h4>
+                  <div className="activity-list">
+                    {drivers.slice(0, 3).map(driver => (
+                      <div key={driver.id} className="activity-item">
+                        <span className="activity-name">{driver.name}</span>
+                        <span className="activity-subtitle">
+                          {driver.role} - {driver.route_name}
+                        </span>
+                        <span className="activity-date">
+                          {new Date(driver.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    {drivers.length === 0 && (
+                      <p className="no-data">No drivers/conductors found</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -278,24 +365,36 @@ function App() {
             </div>
 
             <div className="list-section">
-              <h3>Existing Saccos</h3>
+              <h3>Existing Saccos ({saccos.length})</h3>
               <div className="table-container">
                 <table>
                   <thead>
                     <tr>
                       <th>ID</th>
                       <th>Name</th>
+                      <th>Matatus</th>
                       <th>Created</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {saccos.map(sacco => (
-                      <tr key={sacco.id}>
-                        <td>{sacco.id}</td>
-                        <td>{sacco.name}</td>
-                        <td>{new Date(sacco.created_at).toLocaleDateString()}</td>
+                    {saccos.map(sacco => {
+                      const matatuCount = matatus.filter(m => m.sacco_id === sacco.id).length;
+                      return (
+                        <tr key={sacco.id}>
+                          <td className="id-cell">{sacco.id}</td>
+                          <td className="name-cell">{sacco.name}</td>
+                          <td className="count-cell">
+                            <span className="count-badge">{matatuCount}</span>
+                          </td>
+                          <td className="date-cell">{new Date(sacco.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      );
+                    })}
+                    {saccos.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="no-data-cell">No saccos found</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
