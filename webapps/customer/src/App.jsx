@@ -37,6 +37,21 @@ const CheckIcon = () => (
   </svg>
 );
 
+const HamburgerIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
 function App() {
   const [step, setStep] = useState("home"); // home, matatuCheck, payment, confirmation, rate, history, login
   const [matatuNumber, setMatatuNumber] = useState("");
@@ -53,6 +68,9 @@ function App() {
   const [user, setUser] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  
+  // Hamburger menu state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Initialize Google Sign-In
   useEffect(() => {
@@ -61,8 +79,11 @@ function App() {
     
     // Initialize Google Identity Services when component mounts
     if (window.google) {
+      // Use Vite's import.meta.env instead of process.env
+      const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id";
+      
       window.google.accounts.id.initialize({
-        client_id: "your-google-client-id", // Replace with actual client ID
+        client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleSignIn,
         auto_select: false,
         cancel_on_tap_outside: true
@@ -104,6 +125,15 @@ function App() {
     setCustomer(null);
     setPaymentHistory([]);
     setStep("home");
+  };
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleMenuClick = (menuStep) => {
+    setStep(menuStep);
+    setIsMenuOpen(false);
   };
 
   // Google Sign-In handler
@@ -318,106 +348,208 @@ function App() {
   // Renders...
   // ✅ Render helpers
   const renderHome = () => (
-    <div className="card">
-      <div className="text-center mb-4">
-        <h1>
-          <span className="text-primary">Lipa</span>{" "}
-          <span className="text-salmon">Nganya</span>
-        </h1>
-        <p style={{ color: "var(--gray-medium)", fontSize: "1.1rem" }}>
-          Cashless Matatu Payments & Ratings
-        </p>
-        
+    <div>
+      {/* Header with Hamburger Menu */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: "var(--white)",
+        padding: "var(--spacing-md)",
+        boxShadow: "var(--shadow-sm)",
+        zIndex: 1000,
+        display: "flex",
+        justifyContent: "flex-start",
+        alignItems: "center"
+      }}>
+        <button
+          onClick={toggleMenu}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "var(--spacing-xs)",
+            borderRadius: "var(--radius-sm)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
+          {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+        </button>
+      </div>
+
+      {/* Hamburger Menu Overlay */}
+      {isMenuOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          zIndex: 999,
+          display: "flex",
+          justifyContent: "flex-start"
+        }}>
+          <div style={{
+            backgroundColor: "var(--white)",
+            width: "80%",
+            maxWidth: "400px",
+            padding: "var(--spacing-lg)",
+            boxShadow: "var(--shadow-lg)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--spacing-md)"
+          }}>
+            <div
+              onClick={() => handleMenuClick("home")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Home
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("matatuCheck")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Lipa Nganya
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("rate")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Rate Matatu
+            </div>
+
+            <div
+              onClick={() => handleMenuClick(user ? "history" : "login")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              Payments
+            </div>
+
+            <div
+              onClick={() => handleMenuClick("profile")}
+              style={{
+                padding: "var(--spacing-sm)",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                fontWeight: "500"
+              }}
+            >
+              My Profile
+            </div>
+
+            {user && (
+              <div
+                onClick={handleLogout}
+                style={{
+                  padding: "var(--spacing-sm)",
+                  cursor: "pointer",
+                  fontSize: "1.1rem",
+                  fontWeight: "500",
+                  color: "var(--accent-salmon)"
+                }}
+              >
+                Logout
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div style={{ marginTop: "80px", padding: "var(--spacing-md)" }}>
+        {/* Logo Section */}
+        <div style={{ textAlign: "center", marginBottom: "var(--spacing-lg)" }}>
+          <h1 style={{ fontSize: "2rem", marginBottom: "var(--spacing-sm)" }}>
+            <span style={{ color: "var(--text-primary)" }}>Lipa</span>{" "}
+            <span style={{ color: "var(--accent-salmon)" }}>Nganya</span>
+          </h1>
+          <p style={{ color: "var(--gray-medium)", fontSize: "1rem" }}>
+            Cashless Matatu Payments & Ratings
+          </p>
+        </div>
+
+        {/* 1x2 Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "var(--spacing-sm)",
+          marginBottom: "var(--spacing-lg)",
+          maxWidth: "400px",
+          margin: "0 auto var(--spacing-lg)"
+        }}>
+          <button
+            onClick={handlePayFareClick}
+            className="btn btn-primary"
+            style={{ 
+              aspectRatio: "1", 
+              minHeight: "150px", 
+              flexDirection: "column",
+              fontSize: "1rem",
+              padding: "var(--spacing-sm)"
+            }}
+          >
+            <PayIcon />
+            <span style={{ marginTop: "var(--spacing-xs)", fontSize: "0.9rem" }}>Lipa Nganya</span>
+          </button>
+          
+          <button
+            onClick={handleRateMatatuClick}
+            className="btn btn-secondary"
+            style={{ 
+              aspectRatio: "1", 
+              minHeight: "150px", 
+              flexDirection: "column",
+              fontSize: "1rem",
+              padding: "var(--spacing-sm)"
+            }}
+          >
+            <RateIcon />
+            <span style={{ marginTop: "var(--spacing-xs)", fontSize: "0.9rem" }}>Rate Matatu</span>
+          </button>
+        </div>
+
         {/* User info */}
         {user && (
-          <div style={{ 
+          <div className="card" style={{ 
             backgroundColor: "var(--gray-light)", 
-            padding: "var(--spacing-sm)", 
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "var(--spacing-md)"
+            textAlign: "center"
           }}>
-            <p style={{ margin: 0, fontSize: "0.9rem" }}>
+            <p style={{ margin: 0, fontSize: "1rem", fontWeight: "600" }}>
               Welcome, {user.name || customer?.name || "User"}!
             </p>
             {customer && (
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--gray-medium)" }}>
+              <p style={{ margin: "var(--spacing-xs) 0 0 0", fontSize: "0.9rem", color: "var(--gray-medium)" }}>
                 Phone: {customer.phone}
               </p>
             )}
           </div>
         )}
-      </div>
-      
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
-        <button 
-          className="btn btn-primary" 
-          onClick={handlePayFareClick} 
-          disabled={loading}
-        >
-          <PayIcon />
-          Pay Fare
-        </button>
-        
-        <button 
-          className="btn btn-secondary" 
-          onClick={handleRateMatatuClick} 
-          disabled={loading}
-        >
-          <RateIcon />
-          Rate Matatu
-        </button>
-        
-        {user ? (
-          <>
-            <button 
-              className="btn btn-outline" 
-              onClick={handleHistoryClick} 
-              disabled={loading}
-            >
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 3h18v18H3zM9 9h6v6H9z"/>
-                <path d="M9 1v6M15 1v6M9 17v6M15 17v6"/>
-              </svg>
-              Payment History
-            </button>
-            
-            <button 
-              className="btn btn-outline" 
-              onClick={handleLogout} 
-              disabled={loading}
-              style={{ color: "var(--accent-salmon)", borderColor: "var(--accent-salmon)" }}
-            >
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16,17 21,12 16,7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-              Logout
-            </button>
-          </>
-        ) : (
-          <button 
-            className="btn btn-outline" 
-            onClick={handleLoginClick} 
-            disabled={loading}
-          >
-            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-              <polyline points="10,17 15,12 10,7"/>
-              <line x1="15" y1="12" x2="3" y2="12"/>
-            </svg>
-            Login with Google
-          </button>
-        )}
-        
-        <button 
-          className="btn btn-outline" 
-          onClick={() => alert("Contact Support coming soon")} 
-          disabled={loading}
-        >
-          <SupportIcon />
-          Contact Support
-        </button>
       </div>
     </div>
   );
@@ -684,22 +816,19 @@ function App() {
 
   const renderLogin = () => {
     const handleGoogleClick = () => {
-      // For now, simulate Google Sign-In with mock data
-      // In production, this would use real Google OAuth
-      setLoading(true);
-      setError("");
-      
-      setTimeout(() => {
-        const mockGoogleUser = {
-          id: "google_" + Date.now(),
-          email: "user@gmail.com",
-          name: "Google User",
-          verified: true
-        };
+      if (window.google) {
+        // Use real Google Sign-In
+        window.google.accounts.id.prompt();
+      } else {
+        // Fallback to mock for development
+        setLoading(true);
+        setError("");
         
-        handleGoogleSignIn({ credential: "mock_credential_" + Date.now() });
-        setLoading(false);
-      }, 1000);
+        setTimeout(() => {
+          handleGoogleSignIn({ credential: "mock_credential_" + Date.now() });
+          setLoading(false);
+        }, 1000);
+      }
     };
 
     return (
@@ -845,9 +974,77 @@ function App() {
     </div>
   );
 
+  const renderProfile = () => (
+    <div className="card">
+      <div className="text-center mb-3">
+        <button 
+          className="btn btn-outline" 
+          onClick={() => setStep("home")} 
+          disabled={loading}
+          style={{ width: "auto", minHeight: "40px", padding: "var(--spacing-xs) var(--spacing-sm)" }}
+        >
+          <BackIcon />
+          Back
+        </button>
+      </div>
+      
+      <h2 className="text-center mb-4">My Profile</h2>
+      
+      {user ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+          <div className="card" style={{ backgroundColor: "var(--gray-light)" }}>
+            <h3 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-sm)" }}>
+              Personal Information
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+              <div>
+                <strong>Name:</strong> {user.name || customer?.name || "Not provided"}
+              </div>
+              <div>
+                <strong>Email:</strong> {user.email || "Not provided"}
+              </div>
+              {customer && (
+                <div>
+                  <strong>Phone Number:</strong> {customer.phone}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="card" style={{ backgroundColor: "var(--gray-light)" }}>
+            <h3 style={{ color: "var(--accent-orange)", marginBottom: "var(--spacing-sm)" }}>
+              Account Status
+            </h3>
+            <p style={{ color: "var(--gray-medium)" }}>
+              ✓ Account verified and active
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", padding: "var(--spacing-lg)" }}>
+          <p style={{ color: "var(--gray-medium)", marginBottom: "var(--spacing-md)" }}>
+            Please sign in to view your profile
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setStep("login")} 
+            disabled={loading}
+          >
+            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10,17 15,12 10,7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Sign In with Google
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ 
-      padding: "var(--spacing-md)", 
+      padding: step === "home" ? "0" : "var(--spacing-md)", 
       minHeight: "100vh",
       backgroundColor: "var(--bg-primary)"
     }}>
@@ -858,6 +1055,7 @@ function App() {
       {step === "rate" && renderRateMatatu()}
       {step === "login" && renderLogin()}
       {step === "history" && renderPaymentHistory()}
+      {step === "profile" && renderProfile()}
     </div>
   );
 }
