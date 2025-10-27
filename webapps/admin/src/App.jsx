@@ -12,6 +12,13 @@ function App() {
   const [matatus, setMatatus] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [stats, setStats] = useState({});
+  const [transactions, setTransactions] = useState([]);
+  const [transactionStats, setTransactionStats] = useState({});
+  const [transactionFilters, setTransactionFilters] = useState({
+    status: '',
+    limit: 50,
+    offset: 0
+  });
   
   // Form states
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -79,6 +86,45 @@ function App() {
       console.error('❌ Error loading data:', error);
       alert('Failed to load dashboard data. Please check if the backend is running.');
     }
+  };
+
+  // Load transactions data
+  const loadTransactions = async () => {
+    try {
+      console.log('🔄 Loading transactions data...');
+      const params = new URLSearchParams();
+      if (transactionFilters.status) params.append('status', transactionFilters.status);
+      params.append('limit', transactionFilters.limit);
+      params.append('offset', transactionFilters.offset);
+      
+      const [transactionsRes, statsRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/transactions?${params}`),
+        fetch(`${BACKEND_URL}/api/transactions/stats`)
+      ]);
+
+      const transactionsData = await transactionsRes.json();
+      const statsData = await statsRes.json();
+
+      console.log('✅ Transactions data loaded:', {
+        transactions: transactionsData.transactions?.length || 0,
+        stats: statsData
+      });
+
+      setTransactions(transactionsData.transactions || []);
+      setTransactionStats(statsData);
+    } catch (error) {
+      console.error('❌ Error loading transactions:', error);
+      alert('Failed to load transactions data. Please check if the backend is running.');
+    }
+  };
+
+  // Handle transaction filter change
+  const handleTransactionFilterChange = (filterType, value) => {
+    setTransactionFilters(prev => ({
+      ...prev,
+      [filterType]: value,
+      offset: 0 // Reset offset when filter changes
+    }));
   };
 
   // Create sacco
@@ -200,6 +246,13 @@ function App() {
     );
   }
 
+  // Load transactions when transactions view is selected
+  useEffect(() => {
+    if (currentView === 'transactions') {
+      loadTransactions();
+    }
+  }, [currentView, transactionFilters]);
+
   // Main admin interface
   return (
     <div className="admin-container">
@@ -232,6 +285,12 @@ function App() {
           onClick={() => setCurrentView('drivers')}
         >
           Drivers & Conductors
+        </button>
+        <button 
+          className={currentView === 'transactions' ? 'nav-btn active' : 'nav-btn'}
+          onClick={() => setCurrentView('transactions')}
+        >
+          Transactions
         </button>
       </nav>
 
@@ -574,6 +633,158 @@ function App() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Transactions Management */}
+        {currentView === 'transactions' && (
+          <div className="transactions-section">
+            <div className="section-header">
+              <h2>System Transactions</h2>
+              <button onClick={loadTransactions} className="btn-secondary">
+                🔄 Refresh Data
+              </button>
+            </div>
+
+            {/* Transaction Statistics */}
+            {transactionStats && Object.keys(transactionStats).length > 0 && (
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h3>Total Transactions</h3>
+                  <p className="stat-number">{transactionStats.total_transactions || 0}</p>
+                  <p className="stat-description">All time</p>
+                </div>
+                <div className="stat-card success">
+                  <h3>Successful</h3>
+                  <p className="stat-number">{transactionStats.successful_transactions || 0}</p>
+                  <p className="stat-description">Completed payments</p>
+                </div>
+                <div className="stat-card warning">
+                  <h3>Pending</h3>
+                  <p className="stat-number">{transactionStats.pending_transactions || 0}</p>
+                  <p className="stat-description">Awaiting confirmation</p>
+                </div>
+                <div className="stat-card danger">
+                  <h3>Failed</h3>
+                  <p className="stat-number">{transactionStats.failed_transactions || 0}</p>
+                  <p className="stat-description">Unsuccessful payments</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Total Amount</h3>
+                  <p className="stat-number">{(transactionStats.total_amount || 0).toLocaleString()}</p>
+                  <p className="stat-description">KES processed</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Average Amount</h3>
+                  <p className="stat-number">{(transactionStats.average_amount || 0).toFixed(0)}</p>
+                  <p className="stat-description">KES per transaction</p>
+                </div>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="filters-section">
+              <div className="filter-group">
+                <label htmlFor="status-filter">Filter by Status:</label>
+                <select 
+                  id="status-filter"
+                  value={transactionFilters.status} 
+                  onChange={(e) => handleTransactionFilterChange('status', e.target.value)}
+                  className="form-select"
+                >
+                  <option value="">All Status</option>
+                  <option value="success">Successful</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <label htmlFor="limit-filter">Show:</label>
+                <select 
+                  id="limit-filter"
+                  value={transactionFilters.limit} 
+                  onChange={(e) => handleTransactionFilterChange('limit', parseInt(e.target.value))}
+                  className="form-select"
+                >
+                  <option value="20">20 transactions</option>
+                  <option value="50">50 transactions</option>
+                  <option value="100">100 transactions</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Transactions Table */}
+            <div className="table-container">
+              <h3>Transaction History ({transactions.length} shown)</h3>
+              {transactions.length === 0 ? (
+                <div className="no-data">
+                  <p>No transactions found</p>
+                </div>
+              ) : (
+                <table className="transactions-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Customer</th>
+                      <th>Phone</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Matatu</th>
+                      <th>Sacco</th>
+                      <th>M-Pesa ID</th>
+                      <th>Wallet Credited</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map(transaction => (
+                      <tr key={transaction.id} className={`status-${transaction.status}`}>
+                        <td>{transaction.id}</td>
+                        <td>{transaction.customer_name || 'N/A'}</td>
+                        <td>{transaction.phone}</td>
+                        <td className="amount">{transaction.amount} KES</td>
+                        <td>
+                          <span className={`status-badge ${transaction.status}`}>
+                            {transaction.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>{transaction.route_name || 'N/A'}</td>
+                        <td>{transaction.sacco_name || 'N/A'}</td>
+                        <td className="mpesa-id">
+                          {transaction.mpesa_transaction_id || 'N/A'}
+                        </td>
+                        <td>
+                          {transaction.wallet_credited ? (
+                            <span className="wallet-credited">✓ Yes</span>
+                          ) : (
+                            <span className="wallet-not-credited">✗ No</span>
+                          )}
+                        </td>
+                        <td className="date">
+                          {new Date(transaction.created_at).toLocaleDateString()}<br/>
+                          <small>{new Date(transaction.created_at).toLocaleTimeString()}</small>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Load More Button */}
+            {transactions.length >= transactionFilters.limit && (
+              <div className="load-more-section">
+                <button 
+                  className="btn-secondary"
+                  onClick={() => {
+                    setTransactionFilters(prev => ({ ...prev, offset: prev.offset + prev.limit }));
+                    loadTransactions();
+                  }}
+                >
+                  Load More Transactions
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
