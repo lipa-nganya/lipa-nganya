@@ -63,7 +63,146 @@ const pool = new Pool({
 
 pool
   .connect()
-  .then(() => console.log("✅ Connected to PostgreSQL"))
+  .then(async () => {
+    console.log("✅ Connected to PostgreSQL");
+    
+    // ✅ Create missing tables on startup (for Render compatibility)
+    try {
+      console.log("🔧 Ensuring database tables exist...");
+      
+      // Create drivers table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS drivers (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          phone VARCHAR(20) UNIQUE NOT NULL,
+          role VARCHAR(50) NOT NULL,
+          matatu_id INTEGER REFERENCES matatus(id),
+          pin VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Create wallet tables
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS matatu_wallets (
+          id SERIAL PRIMARY KEY,
+          matatu_id INTEGER UNIQUE REFERENCES matatus(id),
+          balance DECIMAL(10,2) DEFAULT 0.00,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS driver_wallets (
+          id SERIAL PRIMARY KEY,
+          driver_id INTEGER UNIQUE REFERENCES drivers(id),
+          balance DECIMAL(10,2) DEFAULT 0.00,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS conductor_wallets (
+          id SERIAL PRIMARY KEY,
+          conductor_id INTEGER UNIQUE REFERENCES drivers(id),
+          balance DECIMAL(10,2) DEFAULT 0.00,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS wallet_transactions (
+          id SERIAL PRIMARY KEY,
+          wallet_type VARCHAR(20) NOT NULL,
+          wallet_id INTEGER NOT NULL,
+          transaction_type VARCHAR(50) NOT NULL,
+          amount DECIMAL(10,2) NOT NULL,
+          description TEXT,
+          reference_id VARCHAR(100),
+          created_by INTEGER REFERENCES drivers(id),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      console.log("✅ Database tables verified/created");
+      
+      // Add sample data if needed
+      const driversResult = await pool.query('SELECT COUNT(*) FROM drivers');
+      if (parseInt(driversResult.rows[0].count) === 0) {
+        console.log("📝 Adding sample drivers and conductors...");
+        
+        // Ensure we have matatus first
+        const matatusResult = await pool.query('SELECT COUNT(*) FROM matatus');
+        if (parseInt(matatusResult.rows[0].count) === 0) {
+          await pool.query(`
+            INSERT INTO saccos (name) VALUES 
+            ('KBS Sacco'), ('City Hoppa'), ('Metro Trans'), ('Easy Coach')
+            ON CONFLICT DO NOTHING
+          `);
+          
+          await pool.query(`
+            INSERT INTO matatus (route_name, sacco_id) VALUES 
+            ('CBD to Westlands', 1),
+            ('CBD to Eastleigh', 2),
+            ('CBD to Karen', 1),
+            ('CBD to Thika', 3),
+            ('CBD to Rongai', 4)
+            ON CONFLICT DO NOTHING
+          `);
+        }
+        
+        // Add sample drivers and conductors
+        await pool.query(`
+          INSERT INTO drivers (name, phone, role, matatu_id, pin) VALUES 
+          ('John Kamau', '254708374153', 'driver', 1, '1234'),
+          ('Mary Wanjiku', '254708374154', 'driver', 2, '5678'),
+          ('Peter Mwangi', '254708374155', 'driver', 3, '9012'),
+          ('Grace Akinyi', '254708374156', 'driver', 4, '3456'),
+          ('David Ochieng', '254708374157', 'driver', 5, '7890'),
+          ('James Mutua', '254708374158', 'conductor', 1, '1111'),
+          ('Sarah Njeri', '254708374159', 'conductor', 2, '2222'),
+          ('Michael Kiprop', '254708374160', 'conductor', 3, '3333'),
+          ('Esther Wambui', '254708374161', 'conductor', 4, '4444'),
+          ('Samuel Otieno', '254708374162', 'conductor', 5, '5555')
+          ON CONFLICT (phone) DO NOTHING
+        `);
+        
+        // Create wallets
+        const matatus = await pool.query('SELECT id FROM matatus');
+        for (const matatu of matatus.rows) {
+          await pool.query(
+            'INSERT INTO matatu_wallets (matatu_id, balance) VALUES ($1, $2) ON CONFLICT (matatu_id) DO NOTHING',
+            [matatu.id, Math.floor(Math.random() * 20000) + 5000]
+          );
+        }
+        
+        const drivers = await pool.query('SELECT id FROM drivers WHERE role = $1', ['driver']);
+        for (const driver of drivers.rows) {
+          await pool.query(
+            'INSERT INTO driver_wallets (driver_id, balance) VALUES ($1, $2) ON CONFLICT (driver_id) DO NOTHING',
+            [driver.id, Math.floor(Math.random() * 5000) + 1000]
+          );
+        }
+        
+        const conductors = await pool.query('SELECT id FROM drivers WHERE role = $1', ['conductor']);
+        for (const conductor of conductors.rows) {
+          await pool.query(
+            'INSERT INTO conductor_wallets (conductor_id, balance) VALUES ($1, $2) ON CONFLICT (conductor_id) DO NOTHING',
+            [conductor.id, Math.floor(Math.random() * 3000) + 500]
+          );
+        }
+        
+        console.log("✅ Sample data added");
+      }
+      
+    } catch (error) {
+      console.error("❌ Error setting up database tables:", error);
+    }
+  })
   .catch((err) => console.error("❌ Database connection error:", err.stack));
 
 // ✅ Test database tables
