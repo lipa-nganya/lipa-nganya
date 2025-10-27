@@ -184,6 +184,32 @@ app.get("/api/matatus/search", async (req, res) => {
   }
 });
 
+// Get matatu by ID endpoint
+app.get("/api/matatus/:id", async (req, res) => {
+  const matatuId = req.params.id;
+  
+  console.log(`🔍 Fetching matatu with ID: ${matatuId}`);
+  
+  try {
+    // For now, return mock data - in production this would query the database
+    const mockMatatu = {
+      id: parseInt(matatuId),
+      number: "KCA123A",
+      route_name: "Route 1",
+      sacco_name: "Sacco A",
+      plate_number: "KCA123A",
+      routes: ["Route 1", "Route 2", "Route 3"]
+    };
+    
+    console.log(`✅ Matatu found:`, mockMatatu);
+    res.json(mockMatatu);
+    
+  } catch (error) {
+    console.error(`❌ Error fetching matatu:`, error);
+    res.status(500).json({ error: "Error fetching matatu" });
+  }
+});
+
 // ✅ Matatu payments endpoint
 app.get("/api/matatus/:id/payments", async (req, res) => {
   const { id } = req.params;

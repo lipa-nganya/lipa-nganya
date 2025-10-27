@@ -148,23 +148,87 @@ function App() {
   // Load driver data after authentication
   const loadDriverData = async (driverData) => {
     try {
-      // Load matatu information
-      const matatuResponse = await fetch(`${BACKEND_URL}/api/matatus/${driverData.matatu_id}`);
-      if (matatuResponse.ok) {
-        const matatuData = await matatuResponse.json();
-        setMatatu(matatuData);
+      // Set matatu data from the driver data (already provided by backend)
+      if (driverData.matatu) {
+        setMatatu(driverData.matatu);
+      } else if (driverData.matatu_id) {
+        // Fallback: try to fetch matatu data if not provided
+        try {
+          const matatuResponse = await fetch(`${BACKEND_URL}/api/matatus/${driverData.matatu_id}`);
+          if (matatuResponse.ok) {
+            const matatuData = await matatuResponse.json();
+            setMatatu(matatuData);
+          }
+        } catch (matatuErr) {
+          console.log('No matatu data available, using mock data');
+          // Set mock matatu data
+          setMatatu({
+            id: driverData.matatu_id || 1,
+            number: "KCA123A",
+            route_name: "Route 1",
+            sacco_name: "Sacco A",
+            routes: ["Route 1", "Route 2", "Route 3"]
+          });
+        }
       }
       
-      // Load payments
-      await loadPayments(driverData.matatu_id);
+      // Load payments if matatu_id exists
+      if (driverData.matatu_id) {
+        await loadPayments(driverData.matatu_id);
+        await loadEarnings(driverData.matatu_id);
+        await loadRatings(driverData.matatu_id);
+      }
       
-      // Load earnings
-      await loadEarnings(driverData.matatu_id);
+      // Load wallet data
+      await loadWalletData(driverData);
       
-      // Load ratings
-      await loadRatings(driverData.matatu_id);
     } catch (err) {
       console.error('Error loading driver data:', err);
+    }
+  };
+
+  // Load wallet data
+  const loadWalletData = async (driverData) => {
+    try {
+      // For now, set mock wallet data
+      // In production, this would fetch from the backend
+      setMatatuWallet(15000); // Mock matatu wallet balance
+      setDriverWallet(2500);  // Mock driver wallet balance
+      setConductorWallet(1800); // Mock conductor wallet balance
+      
+      // Mock recent transactions
+      setRecentTransactions([
+        {
+          id: 1,
+          type: 'payment_received',
+          amount: 50,
+          from: 'Customer Payment',
+          timestamp: new Date().toISOString(),
+          description: 'Fare payment from customer'
+        },
+        {
+          id: 2,
+          type: 'fuel_payment',
+          amount: -2000,
+          to: 'Fuel Station',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          description: 'Fuel payment'
+        }
+      ]);
+      
+      // Mock payment notifications
+      setPaymentNotifications([
+        {
+          id: 1,
+          customerName: 'John Doe',
+          amount: 50,
+          timestamp: new Date().toISOString(),
+          status: 'received'
+        }
+      ]);
+      
+    } catch (err) {
+      console.error('Error loading wallet data:', err);
     }
   };
 
