@@ -73,6 +73,9 @@ function App() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   
+  // Payment details state
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  
   // Authentication state - phone-based
   const [customer, setCustomer] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
@@ -451,6 +454,31 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Handle payment selection
+  const handlePaymentClick = (payment) => {
+    console.log(`🔍 Payment clicked:`, payment);
+    setSelectedPayment(payment);
+  };
+
+  const handleClosePaymentDetails = () => {
+    setSelectedPayment(null);
+  };
+
+  // ✅ Sort payments by most recent first
+  const getSortedPayments = () => {
+    return [...paymentHistory].sort((a, b) => {
+      // If both have created_at, sort by date (newest first)
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      // If only one has created_at, prioritize it
+      if (a.created_at && !b.created_at) return -1;
+      if (!a.created_at && b.created_at) return 1;
+      // If neither has created_at, sort by ID (higher ID = newer)
+      return b.id - a.id;
+    });
   };
 
   // ✅ Handle profile editing
@@ -1287,10 +1315,11 @@ function App() {
           maxHeight: "70vh",
           overflowY: "auto"
         }}>
-          {paymentHistory.map((payment) => (
+          {getSortedPayments().map((payment) => (
             <div 
               key={payment.id} 
               className="card" 
+              onClick={() => handlePaymentClick(payment)}
               style={{ 
                 backgroundColor: payment.status === 'success' ? "#e8f5e8" : "#ffe6e6",
                 padding: "var(--spacing-sm)",
@@ -1299,7 +1328,20 @@ function App() {
                 flexDirection: "row",
                 justifyContent: "space-between",
                 alignItems: "center",
-                width: "100%"
+                width: "100%",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: "2px solid transparent"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.borderColor = payment.status === 'success' ? "var(--accent-orange)" : "var(--accent-salmon)";
+                e.target.style.transform = "translateY(-1px)";
+                e.target.style.boxShadow = "var(--shadow-md)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.borderColor = "transparent";
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "var(--shadow-sm)";
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", flex: 1 }}>
@@ -1331,6 +1373,111 @@ function App() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Payment Details Modal */}
+      {selectedPayment && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          zIndex: 2000,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "var(--spacing-md)"
+        }}>
+          <div className="card" style={{
+            backgroundColor: "var(--white)",
+            maxWidth: "400px",
+            width: "100%",
+            maxHeight: "80vh",
+            overflowY: "auto"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--spacing-md)" }}>
+              <h3 style={{ margin: 0, color: "var(--accent-orange)" }}>Payment Details</h3>
+              <button 
+                onClick={handleClosePaymentDetails}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "var(--spacing-xs)",
+                  borderRadius: "var(--radius-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+              <div style={{ 
+                padding: "var(--spacing-md)", 
+                backgroundColor: selectedPayment.status === 'success' ? "#e8f5e8" : "#ffe6e6",
+                borderRadius: "var(--radius-sm)",
+                textAlign: "center"
+              }}>
+                <div style={{ 
+                  display: "inline-block",
+                  padding: "8px 16px", 
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: selectedPayment.status === 'success' ? "var(--accent-orange)" : "var(--accent-salmon)",
+                  color: "white",
+                  fontSize: "1rem",
+                  fontWeight: "600",
+                  marginBottom: "var(--spacing-sm)"
+                }}>
+                  {selectedPayment.status === 'success' ? '✓ Payment Successful' : '✗ Payment Failed'}
+                </div>
+                <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: "700", color: "var(--text-primary)" }}>
+                  {selectedPayment.amount} KES
+                </p>
+              </div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                  <span style={{ fontWeight: "600" }}>Route:</span>
+                  <span>{selectedPayment.route_name || 'N/A'}</span>
+                </div>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                  <span style={{ fontWeight: "600" }}>Sacco:</span>
+                  <span>{selectedPayment.sacco_name || 'N/A'}</span>
+                </div>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                  <span style={{ fontWeight: "600" }}>Phone:</span>
+                  <span>{selectedPayment.phone || 'N/A'}</span>
+                </div>
+                
+                {selectedPayment.created_at && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                      <span style={{ fontWeight: "600" }}>Date:</span>
+                      <span>{new Date(selectedPayment.created_at).toLocaleDateString()}</span>
+                    </div>
+                    
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                      <span style={{ fontWeight: "600" }}>Time:</span>
+                      <span>{new Date(selectedPayment.created_at).toLocaleTimeString()}</span>
+                    </div>
+                  </>
+                )}
+                
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--spacing-sm)", backgroundColor: "var(--gray-light)", borderRadius: "var(--radius-sm)" }}>
+                  <span style={{ fontWeight: "600" }}>Payment ID:</span>
+                  <span style={{ fontSize: "0.9rem", color: "var(--gray-medium)" }}>#{selectedPayment.id}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
