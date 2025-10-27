@@ -156,20 +156,26 @@ function App() {
       return;
     }
 
+    console.log(`🔍 Name capture: firstName='${firstName}', lastName='${lastName}', phone='${phone}'`);
     setLoading(true);
     setError("");
 
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      console.log(`📝 Creating account with full name: '${fullName}'`);
+      
       const customerData = await findCustomerByPhone(phone, fullName);
+      console.log(`📊 Customer data received:`, customerData);
       
       if (customerData) {
+        console.log(`✅ Account created successfully, redirecting to profile`);
         setStep("profile");
       } else {
+        console.error(`❌ Failed to create account - no customer data returned`);
         setError("Failed to create account. Please try again.");
       }
     } catch (err) {
-      console.error("Error creating account:", err);
+      console.error("❌ Error creating account:", err);
       setError("Failed to create account. Please try again.");
     } finally {
       setLoading(false);
@@ -187,6 +193,8 @@ function App() {
 
   // Find or create customer by phone
   const findCustomerByPhone = async (phoneNumber, name = null) => {
+    console.log(`🔍 findCustomerByPhone called with phone: ${phoneNumber}, name: ${name}`);
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/customers/create-or-find`, {
         method: "POST",
@@ -197,15 +205,22 @@ function App() {
         }),
       });
 
+      console.log(`📡 API response status: ${response.status}`);
       const data = await response.json();
+      console.log(`📊 API response data:`, data);
 
       if (response.ok) {
         const customerData = data.customer;
+        console.log(`✅ Customer data from API:`, customerData);
         saveCustomerAndAuthenticate(customerData);
         return customerData;
+      } else {
+        console.error(`❌ API error:`, data);
+        return null;
       }
     } catch (err) {
-      console.error("Error finding customer:", err);
+      console.error("❌ Error finding customer:", err);
+      return null;
     }
   };
 

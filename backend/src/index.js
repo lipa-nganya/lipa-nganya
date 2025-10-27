@@ -59,6 +59,38 @@ pool
   .then(() => console.log("✅ Connected to PostgreSQL"))
   .catch((err) => console.error("❌ Database connection error:", err.stack));
 
+// ✅ Test database tables
+app.get("/test-db", async (req, res) => {
+  try {
+    console.log("🔍 Testing database tables...");
+    
+    // Test customers table
+    const customersResult = await pool.query("SELECT COUNT(*) FROM customers");
+    console.log(`✅ Customers table: ${customersResult.rows[0].count} records`);
+    
+    // Test payments table
+    const paymentsResult = await pool.query("SELECT COUNT(*) FROM payments");
+    console.log(`✅ Payments table: ${paymentsResult.rows[0].count} records`);
+    
+    // Test matatus table
+    const matatusResult = await pool.query("SELECT COUNT(*) FROM matatus");
+    console.log(`✅ Matatus table: ${matatusResult.rows[0].count} records`);
+    
+    res.json({
+      customers: customersResult.rows[0].count,
+      payments: paymentsResult.rows[0].count,
+      matatus: matatusResult.rows[0].count,
+      message: "Database tables accessible"
+    });
+  } catch (error) {
+    console.error("❌ Database test error:", error);
+    res.status(500).json({ 
+      error: "Database test failed", 
+      details: error.message 
+    });
+  }
+});
+
 // ✅ Default route
 app.get("/", (req, res) => {
   console.log("✅ Health check requested");

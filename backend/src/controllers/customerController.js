@@ -13,6 +13,8 @@ export const getCustomers = async (req, res) => {
 // ✅ Create or find customer by phone number
 export const createOrFindCustomer = async (req, res) => {
   const { phone, name, email } = req.body;
+  
+  console.log(`🔍 createOrFindCustomer called with phone: ${phone}, name: ${name}`);
 
   if (!phone) {
     return res.status(400).json({ error: "Phone number is required" });
@@ -25,9 +27,12 @@ export const createOrFindCustomer = async (req, res) => {
       [phone]
     );
 
+    console.log(`📊 Found ${result.rows.length} existing customers for phone: ${phone}`);
+
     if (result.rows.length > 0) {
       // Customer exists, update name if provided (skip email for production compatibility)
       if (name) {
+        console.log(`🔄 Updating customer name from '${result.rows[0].name}' to '${name}'`);
         try {
           const updateQuery = `
             UPDATE customers 
@@ -37,6 +42,7 @@ export const createOrFindCustomer = async (req, res) => {
             RETURNING *
           `;
           result = await pool.query(updateQuery, [phone, name]);
+          console.log(`✅ Customer updated successfully: ${JSON.stringify(result.rows[0])}`);
         } catch (updateError) {
           console.error("❌ Error updating customer:", updateError.message);
           // If update fails, just return existing customer
@@ -49,6 +55,7 @@ export const createOrFindCustomer = async (req, res) => {
       });
     } else {
       // Create new customer (without email for production compatibility)
+      console.log(`🆕 Creating new customer with phone: ${phone}, name: ${name}`);
       try {
         const insertQuery = `
           INSERT INTO customers (phone, name) 
@@ -56,6 +63,7 @@ export const createOrFindCustomer = async (req, res) => {
           RETURNING *
         `;
         result = await pool.query(insertQuery, [phone, name || `Customer ${phone}`]);
+        console.log(`✅ New customer created: ${JSON.stringify(result.rows[0])}`);
       } catch (insertError) {
         console.error("❌ Error inserting customer:", insertError.message);
         // Try with email column if it exists
@@ -65,6 +73,7 @@ export const createOrFindCustomer = async (req, res) => {
           RETURNING *
         `;
         result = await pool.query(insertQueryWithEmail, [phone, name || `Customer ${phone}`, email || null]);
+        console.log(`✅ New customer created (with email): ${JSON.stringify(result.rows[0])}`);
       }
       
       return res.status(201).json({ 
